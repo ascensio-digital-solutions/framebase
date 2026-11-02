@@ -1,9 +1,16 @@
 name: Framebase CI
 
+# macOS minutes bill at about 10x Linux, so documentation-only changes skip CI.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
 
 concurrency:
   group: framebase-${{ github.workflow }}-${{ github.ref }}
