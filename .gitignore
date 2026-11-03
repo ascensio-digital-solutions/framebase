@@ -23,5 +23,6 @@ env/
 *~
 .DS_Store
 
-# ADK
-.adk/.taskplane/
+# ADK / harness artifacts
+.adk/
+.taskplane/
