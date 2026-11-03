@@ -426,7 +426,7 @@ def generate_hair_system_image(
             ))
 
         response = client.models.generate_content(
-            model="gemini-3.1-flash-image-preview",
+            model="gemini-3.1-flash-image",
             contents=genai_types.Content(
                 role="user",
                 parts=contents,
@@ -455,7 +455,7 @@ def generate_hair_system_image(
             "status": "generated",
             "image_path": image_path,
             "spec": asdict(spec),
-            "model": "gemini-3.1-flash-image-preview (Nano Banana 2)",
+            "model": "gemini-3.1-flash-image (Nano Banana 2)",
             "message": f"Image generated successfully using {color_name} ({color_code}), "
                        f"{curl_pattern}, {density_percent}% density, {base_type} base. "
                        f"Saved to {image_path}",
@@ -548,7 +548,7 @@ def generate_transformation_comparison(
                 ))
 
             response = client.models.generate_content(
-                model="gemini-3.1-flash-image-preview",
+                model="gemini-3.1-flash-image",
                 contents=genai_types.Content(role="user", parts=contents),
                 config=genai_types.GenerateContentConfig(
                     response_modalities=["IMAGE", "TEXT"],

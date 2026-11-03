@@ -74,7 +74,7 @@ If you're unsure about a parameter, use the get_prompt_spec tool to validate it.
 
 hair_system_expert = LlmAgent(
     name="hair_system_expert",
-    model="gemini-3.8-flash",
+    model="gemini-4-argon",
     instruction=AGENT_INSTRUCTION,
     tools=[
         generate_hair_system_image,
