@@ -18,7 +18,7 @@ Model assignments:
 
 from google.adk import Agent
 from google.adk.agents import LlmAgent
-from google.adk.tools import load_memory_tool, preload_memory_tool
+from google.adk.tools import load_memory, preload_memory
 
 from .tools import (
     generate_hair_system_image,
@@ -128,7 +128,7 @@ SAME lighting, SAME camera angle.
 
 hair_system_expert = LlmAgent(
     name="hair_system_expert",
-    model="gemini-2.5-flash",
+    model="gemini-3.8-flash",
     instruction=AGENT_INSTRUCTION,
     tools=[
         generate_hair_system_image,
@@ -138,8 +138,8 @@ hair_system_expert = LlmAgent(
         match_hair_color,
         recommend_base_type,
         calculate_density,
-        preload_memory_tool,
-        load_memory_tool,
+        preload_memory,
+        load_memory,
     ],
 )
 
