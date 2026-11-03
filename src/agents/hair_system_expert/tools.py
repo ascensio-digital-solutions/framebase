@@ -436,22 +436,29 @@ def generate_hair_system_image(
             ),
         )
 
-        # Extract generated image
-        image_data = None
+        # Extract generated image — save to disk, return reference only
+        # (Returning base64 data blows the planning model's token limit)
+        image_path = None
         for part in response.candidates[0].content.parts:
             if part.inline_data and part.inline_data.mime_type.startswith("image/"):
-                image_data = {
-                    "mime_type": part.inline_data.mime_type,
-                    "data": part.inline_data.data,  # base64 bytes
-                }
+                import base64, tempfile, os
+                ext = part.inline_data.mime_type.split("/")[-1]
+                out_dir = os.path.join(os.path.dirname(__file__), ".adk", "generated")
+                os.makedirs(out_dir, exist_ok=True)
+                import time
+                image_path = os.path.join(out_dir, f"hair_system_{int(time.time())}.{ext}")
+                with open(image_path, "wb") as f:
+                    f.write(part.inline_data.data)
                 break
 
         return {
             "status": "generated",
-            "prompt": prompt,
+            "image_path": image_path,
             "spec": asdict(spec),
-            "image": image_data,
             "model": "gemini-3.1-flash-image-preview (Nano Banana 2)",
+            "message": f"Image generated successfully using {color_name} ({color_code}), "
+                       f"{curl_pattern}, {density_percent}% density, {base_type} base. "
+                       f"Saved to {image_path}",
         }
 
     except Exception as e:
@@ -521,10 +528,13 @@ def generate_transformation_comparison(
     before_prompt = build_image_prompt(spec, image_type="transformation_before")
     after_prompt = build_image_prompt(spec, image_type="transformation_after")
 
-    results = {"status": "generating", "before": None, "after": None}
+    results = {"status": "generating", "before_path": None, "after_path": None}
     errors = []
 
     try:
+        import base64, os, time
+        out_dir = os.path.join(os.path.dirname(__file__), ".adk", "generated")
+        os.makedirs(out_dir, exist_ok=True)
         client = genai.Client()
 
         # Generate both frames
@@ -532,7 +542,6 @@ def generate_transformation_comparison(
             contents = [genai_types.Part.from_text(text=prompt_text)]
 
             if reference_image_uri and frame_type == "after":
-                # For after frame, use reference to preserve identity
                 contents.insert(0, genai_types.Part.from_uri(
                     file_uri=reference_image_uri,
                     mime_type="image/jpeg",
@@ -548,16 +557,16 @@ def generate_transformation_comparison(
 
             for part in response.candidates[0].content.parts:
                 if part.inline_data and part.inline_data.mime_type.startswith("image/"):
-                    results[frame_type] = {
-                        "mime_type": part.inline_data.mime_type,
-                        "data": part.inline_data.data,
-                    }
+                    ext = part.inline_data.mime_type.split("/")[-1]
+                    path = os.path.join(out_dir, f"transformation_{frame_type}_{int(time.time())}.{ext}")
+                    with open(path, "wb") as f:
+                        f.write(part.inline_data.data)
+                    results[f"{frame_type}_path"] = path
                     break
 
         results["status"] = "generated"
-        results["before_prompt"] = before_prompt
-        results["after_prompt"] = after_prompt
         results["spec"] = asdict(spec)
+        results["message"] = f"Before/after transformation generated. Before: {results['before_path']}, After: {results['after_path']}"
 
     except Exception as e:
         results["status"] = "partial" if any(results.values()) else "error"
@@ -616,6 +625,9 @@ def generate_hair_system_video(
     prompt = build_video_prompt(spec, video_type)
 
     try:
+        import os, time
+        out_dir = os.path.join(os.path.dirname(__file__), ".adk", "generated")
+        os.makedirs(out_dir, exist_ok=True)
         client = genai.Client()
         contents = [genai_types.Part.from_text(text=prompt)]
 
@@ -634,22 +646,22 @@ def generate_hair_system_video(
             ),
         )
 
-        video_data = None
+        video_path = None
         for part in response.candidates[0].content.parts:
             if part.inline_data and part.inline_data.mime_type.startswith("video/"):
-                video_data = {
-                    "mime_type": part.inline_data.mime_type,
-                    "data": part.inline_data.data,
-                }
+                ext = part.inline_data.mime_type.split("/")[-1]
+                video_path = os.path.join(out_dir, f"hair_system_{video_type}_{int(time.time())}.{ext}")
+                with open(video_path, "wb") as f:
+                    f.write(part.inline_data.data)
                 break
 
         return {
             "status": "generated",
-            "prompt": prompt,
+            "video_path": video_path,
             "video_type": video_type,
             "spec": asdict(spec),
-            "video": video_data,
             "model": "gemini-omni-1.1-flash (Gemini Omni Flash)",
+            "message": f"Video generated successfully: {video_type}. Saved to {video_path}",
         }
 
     except Exception as e:
