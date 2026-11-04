@@ -1,6 +1,6 @@
 # Fine-tuning plan: Hair System Expert + Marketing Director
 
-**Date:** 2026-11-03 · **Project:** `agents-studio-media` · **Bucket:** `gs://agents-studio-media-assets` (us-east1)
+**Date:** 2026-11-04 · **Project:** `the-hair-concierge-2026` (consolidated from `agents-studio-media`) · **Bucket:** `gs://the-hair-concierge-2026-assets` (us-east1)
 
 ## 0. What the project looks like today (checked live)
 
@@ -30,7 +30,7 @@
   - tags such as `quality:strong` and `hairline:undetectable`
   
   A further 1,197 assets in those folders have no R2 copy recorded yet.
-- **Manifest.** `gs://agents-studio-media-assets/manifests/hsc_reference_manifest_v01.jsonl` has 1,551 rows. Each row records the folder, tags, sha256 and R2 key. It covers products, specs, web, brand and marketing. It deliberately leaves out `03_people`, `09_reference/ops-screenshots` (customer chats) and `10_private`.
+- **Manifest.** `gs://the-hair-concierge-2026-assets/manifests/hsc_reference_manifest_v01.jsonl` has 1,551 rows. Each row records the folder, tags, sha256 and R2 key. It covers products, specs, web, brand and marketing. It deliberately leaves out `03_people`, `09_reference/ops-screenshots` (customer chats) and `10_private`.
 - **Uploaded to Cloud Storage (text only, 19 files):**
   - the knowledge docs
   - the Media Workshop taxonomy (`media_workshop_taxonomy_v01.md`)
@@ -41,7 +41,7 @@
   
   Object versioning is on.
 - **What still has to come from R2:** the reference images themselves, the logos, marble cutouts and the Krea reference board. The tools should fetch them by manifest tag at generation time. Copy images to Cloud Storage only for a multimodal SFT set, because tuning needs `gs://` URIs.
-- **Second project.** Media Workshop's Nano Banana studio and Gemini analyzer run in a separate project, `ascensio-media-os`. Agents Studio runs in `agents-studio-media`. Pick one project for tuning jobs and corpora.
+- **Second project.** Media Workshop's Nano Banana studio and Gemini analyzer run in a separate project, `ascensio-media-os`. Agents Studio and The Hair Concierge have been consolidated into `the-hair-concierge-2026`.
 
 ### Text knowledge in Notion (checked 2026-11-03)
 
@@ -179,7 +179,7 @@ If Tier 2 goes into RAG, it needs a `tier=unreviewed` metadata filter, and the i
 ### 3b. Where it goes and how it's named
 
 ```
-gs://agents-studio-media-assets/
+gs://the-hair-concierge-2026-assets/
   hair-system/knowledge/          hair_system_bible_v01.md, spec_<supplier>_<yyyymm>.pdf
   hair-system/references/         <topic>/<code>_<curl>_<density>_<view>_<good|bad>_v01.jpg
   hair-system/tuning/             sft_train_v01.jsonl, sft_val_v01.jsonl, dpo_train_v01.jsonl

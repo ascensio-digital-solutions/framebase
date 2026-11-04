@@ -33,3 +33,4 @@ None yet.
 |---|---|---|
 | 2026-11-03 | Use ADK Python (code-first) as primary dev surface | Full control, local IDE, deploy anywhere |
 | 2026-11-03 | GitHub repo as source of truth; AI Studio Build as iteration/ deploy target | GitHub import keeps the repo portable |
+| 2026-11-04 | Consolidate GCP project `agents-studio-media` into `the-hair-concierge-2026` (`1043516983318`) | Unified billing, GCS bucket `gs://the-hair-concierge-2026-assets/`, RAG corpora (`4611686018427387904` & `2305843009213693952`), and Cloud Run under a single project |
