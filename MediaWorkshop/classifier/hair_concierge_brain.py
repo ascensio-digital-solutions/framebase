@@ -27,6 +27,7 @@ AGENTS_STUDIO_ROOT = MONOREPO_ROOT / "AgentsStudio"
 if str(AGENTS_STUDIO_ROOT) not in sys.path:
     sys.path.insert(0, str(AGENTS_STUDIO_ROOT))
 
+import importlib.util
 from src.agents.shared.rag import (  # noqa: E402
     HAIR_SYSTEM_RAG_CORPUS,
     MARKETING_BRAND_RAG_CORPUS,
@@ -37,19 +38,26 @@ from src.agents.shared.references import (  # noqa: E402
     select_hair_system_references,
     select_marketing_references,
 )
-from src.agents.hair_system_expert.tools import (  # noqa: E402
-    BANNED_CUSTOMER_WORDS,
-    BASE_TYPES,
-    COLOR_CODES,
-    CURL_PATTERNS,
-    DENSITY_SCALE,
-    GREY_PERCENTAGES,
-    HAIR_ORIGINS,
-    calculate_density,
-    get_prompt_spec,
-    match_hair_color,
-    recommend_base_type,
+
+_tools_spec = importlib.util.spec_from_file_location(
+    "hair_system_expert_tools",
+    AGENTS_STUDIO_ROOT / "src" / "agents" / "hair_system_expert" / "tools.py",
 )
+_tools_mod = importlib.util.module_from_spec(_tools_spec)  # type: ignore[arg-type]
+assert _tools_spec and _tools_spec.loader
+_tools_spec.loader.exec_module(_tools_mod)
+
+BANNED_CUSTOMER_WORDS = _tools_mod.BANNED_CUSTOMER_WORDS
+BASE_TYPES = _tools_mod.BASE_TYPES
+COLOR_CODES = _tools_mod.COLOR_CODES
+CURL_PATTERNS = _tools_mod.CURL_PATTERNS
+DENSITY_SCALE = _tools_mod.DENSITY_SCALE
+GREY_PERCENTAGES = _tools_mod.GREY_PERCENTAGES
+HAIR_ORIGINS = _tools_mod.HAIR_ORIGINS
+calculate_density = _tools_mod.calculate_density
+get_prompt_spec = _tools_mod.get_prompt_spec
+match_hair_color = _tools_mod.match_hair_color
+recommend_base_type = _tools_mod.recommend_base_type
 
 HAIR_CONCIERGE_GCP_PROJECT = "the-hair-concierge-2026"
 HAIR_CONCIERGE_GCS_BUCKET = "gs://the-hair-concierge-2026-assets"
