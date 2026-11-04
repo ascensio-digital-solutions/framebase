@@ -85,9 +85,11 @@ from taxonomy import (
     Sensitivity,
 )
 try:
-    from hair_concierge_brain import get_sorter_grounding_context
-    HAIR_CONCIERGE_GROUNDING = "\n\n" + get_sorter_grounding_context()
-except Exception:
+    from hair_concierge_brain import get_sorter_grounding_context, install_google_ipv4_dns_resolver
+    install_google_ipv4_dns_resolver()
+    HAIR_CONCIERGE_GROUNDING = "\n\n" + get_sorter_grounding_context(fetch_live_rag=True)
+except Exception as _brain_err:
+    print(f"[WARN] Could not load Hair Concierge Brain grounding: {_brain_err}", file=sys.stderr)
     HAIR_CONCIERGE_GROUNDING = ""
 
 PROJECT_ID = "ascensio-media-os"
@@ -221,8 +223,8 @@ def load_image_jpeg_bytes(img_path: Path, max_dim: int = 1024) -> Optional[bytes
 
 
 class VertexVisionClassifier:
-    """Wraps Google Cloud Vertex AI (`ascensio-media-os`, `global`, `gemini-3.8-flash`)
-    with automatic fallback to GEMINI_API_KEY from ~/.env if OAuth ADC needs re-login.
+    """Strictly wraps Google Cloud Vertex AI (`ascensio-media-os`, `global`, `gemini-3.8-flash`)
+    so 100% of calls are billed to GCP credits (zero fallback to GEMINI_API_KEY).
     """
 
     def __init__(self, project: str = PROJECT_ID, location: str = LOCATION, model: str = MODEL_NAME):
@@ -230,22 +232,6 @@ class VertexVisionClassifier:
         self.location = location
         self.model = model
         self.client = genai.Client(vertexai=True, project=self.project, location=self.location)
-        self._fallback_client: Optional[genai.Client] = None
-
-    def _get_fallback_api_client(self) -> Optional[genai.Client]:
-        if self._fallback_client is not None:
-            return self._fallback_client
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            env_file = Path.home() / ".env"
-            if env_file.exists():
-                for line in env_file.read_text(encoding="utf-8", errors="ignore").splitlines():
-                    if line.startswith("GEMINI_API_KEY="):
-                        api_key = line.split("=", 1)[1].strip().strip('"').strip("'")
-                        break
-        if api_key:
-            self._fallback_client = genai.Client(api_key=api_key)
-        return self._fallback_client
 
     def classify_image(self, img_path: Path, context_hint: str = "") -> Optional[PhotoClassification]:
         jpeg_bytes = load_image_jpeg_bytes(img_path)
@@ -256,7 +242,7 @@ class VertexVisionClassifier:
         if context_hint:
             user_prompt += f"\nContext: {context_hint}"
 
-        for attempt in range(4):
+        for attempt in range(6):
             try:
                 response = self.client.models.generate_content(
                     model=self.model,
@@ -278,19 +264,10 @@ class VertexVisionClassifier:
                 data = json.loads(raw_text)
                 return PhotoClassification(**data)
             except Exception as err:
-                if "invalid_grant" in str(err) or "UNAUTHENTICATED" in str(err):
-                    fb = self._get_fallback_api_client()
-                    if fb is not None:
-                        self.client = fb
-                        continue
-                    print(
-                        f"[ERROR] Vertex AI ADC token expired/revoked on {img_path.name}: {err}",
-                        file=sys.stderr,
-                    )
-                    break
-                wait_s = 1.5 * (attempt + 1)
+                is_429 = "429" in str(err) or "RESOURCE_EXHAUSTED" in str(err)
+                wait_s = (3.0 * (2 ** attempt)) if is_429 else (1.5 * (attempt + 1))
                 print(
-                    f"[WARN] Vertex AI attempt {attempt + 1} failed on {img_path.name}: {err}. Retrying in {wait_s:.1f}s...",
+                    f"[WARN] Vertex AI ({self.project}/{self.location}/{self.model}) attempt {attempt + 1} failed on {img_path.name}: {err}. Retrying in {wait_s:.1f}s...",
                     file=sys.stderr,
                 )
                 time.sleep(wait_s)
@@ -960,6 +937,11 @@ def run_gatekeeper(
             FROM assets a
             JOIN folders f ON a.parent_folder_id = f.id
             WHERE LOWER(f.name) IN ('00_inbox', 'inbox')
+              AND a.id NOT IN (
+                  SELECT at.asset_id FROM asset_tags at
+                  JOIN tags t ON at.tag_id = t.id
+                  WHERE t.name = 'verified:gemini-3.8-flash'
+              )
             ORDER BY a.imported_at_ms DESC
             """
         )
@@ -975,6 +957,9 @@ def run_gatekeeper(
     print(f"Evaluating: {len(selected)} assets | Mode: {'APPLY' if apply_changes else 'DRY-RUN'}")
     print(f"{'=' * 88}\n")
 
+    hsc_router = FramebaseCatalogRouter(HSC_LIB) if (apply_changes and HSC_LIB.exists()) else None
+    hsc_conn = hsc_router.connect() if hsc_router else None
+
     results: List[Dict[str, Any]] = []
     for idx, (asset_id, filename, img_path) in enumerate(selected, 1):
         t0 = time.time()
@@ -984,6 +969,48 @@ def run_gatekeeper(
             continue
 
         target_lib, target_folder, reason = determine_pass1_route(cls)
+        if apply_changes and hsc_router and hsc_conn and asset_id:
+            if target_lib == HSC_LIB.name:
+                dest_fid = hsc_router.ensure_folder_path(hsc_conn, target_folder)
+                hsc_conn.execute(
+                    "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
+                    (dest_fid, int(time.time() * 1000), asset_id),
+                )
+                hsc_router.attach_tags_and_assessment(
+                    hsc_conn,
+                    asset_id,
+                    cls,
+                    extra_tags=["verified:gemini-3.8-flash", "brain:the-hair-concierge-2026"],
+                )
+                hsc_conn.commit()
+            else:
+                archive_sub = (
+                    "09_archive/quarantine"
+                    if "quarantine" in target_folder
+                    else (
+                        "09_archive/routed-knowledge"
+                        if target_lib == KNOWLEDGE_LIB.name
+                        else "09_archive/routed-personal"
+                    )
+                )
+                dest_fid = hsc_router.ensure_folder_path(hsc_conn, archive_sub)
+                hsc_conn.execute(
+                    "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
+                    (dest_fid, int(time.time() * 1000), asset_id),
+                )
+                hsc_router.attach_tags_and_assessment(
+                    hsc_conn,
+                    asset_id,
+                    cls,
+                    extra_tags=[
+                        "verified:gemini-3.8-flash",
+                        "brain:the-hair-concierge-2026",
+                        f"route-library:{slugify(target_lib)}",
+                        f"route-folder:{slugify(target_folder)}",
+                    ],
+                )
+                hsc_conn.commit()
+
         record = {
             "index": idx,
             "asset_id": asset_id,
@@ -999,6 +1026,9 @@ def run_gatekeeper(
             f"[{idx}/{len(selected)}] {filename} -> {target_lib} :: `{target_folder}` ({elapsed:.2f}s)\n"
             f"  -> {reason}"
         )
+
+    if hsc_conn:
+        hsc_conn.close()
     return results
 
 

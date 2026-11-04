@@ -25,6 +25,11 @@ struct FramebaseAssistantPanel: View {
             "Repo & CRM Scout",
             "terminal",
             "Find open-source CRM and AI repo screenshots"
+        ),
+        (
+            "Hair System Brain",
+            "brain.head.profile",
+            "Ask the Hair Concierge Brain: Swiss lace vs 0.03mm ultra-thin skin hairline graduation"
         )
     ]
 
@@ -48,11 +53,22 @@ struct FramebaseAssistantPanel: View {
                 .padding(.vertical, 6)
                 .background(Color.accentColor.opacity(0.08))
             }
+            if assistant.attachedImageURL != nil || !assistant.windowModel.selectedAssetIDs.isEmpty {
+                Divider()
+                attachmentPreviewBar
+            }
             Divider()
             composerBar
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: NSColor(srgbRed: 0.10, green: 0.10, blue: 0.115, alpha: 1.0)))
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let first = urls.first else { return false }
+            let ext = first.pathExtension.lowercased()
+            guard ["png", "jpg", "jpeg", "webp", "heic", "tiff", "gif"].contains(ext) else { return false }
+            assistant.attachImageURL(first)
+            return true
+        }
         .accessibilityIdentifier("assistant.panel")
     }
 
@@ -63,7 +79,7 @@ struct FramebaseAssistantPanel: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Framebase 2.0 Media Expert")
                     .font(.headline)
-                Text("Cloudflare Agents SDK × Gemini 3.8 Flash")
+                Text("The Hair Concierge Brain × Vertex AI Gemini 3.8 Flash")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -76,6 +92,24 @@ struct FramebaseAssistantPanel: View {
     private var quickActionStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                Button {
+                    Task {
+                        await assistant.runMushroomHeadVisionDemo()
+                    }
+                } label: {
+                    Label("Mushroom-Head Colors (Vision)", systemImage: "camera.viewfinder")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.accentColor.opacity(0.22))
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(assistant.isProcessing)
+                .accessibilityIdentifier("assistant.chip.MushroomHeadVision")
+
                 ForEach(quickPrompts, id: \.label) { chip in
                     Button {
                         Task {
@@ -127,6 +161,30 @@ struct FramebaseAssistantPanel: View {
             HStack {
                 if message.role == .user { Spacer(minLength: 24) }
                 VStack(alignment: .leading, spacing: 8) {
+                    if let imgURL = message.attachedImageURL,
+                       let nsImage = NSImage(contentsOf: imgURL) {
+                        HStack(spacing: 8) {
+                            Image(nsImage: nsImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: 160, maxHeight: 110)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                                )
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label("Reference Photo", systemImage: "camera.metering.matrix")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Text(imgURL.lastPathComponent)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+
                     Text(LocalizedStringKey(message.text))
                         .font(.callout)
                         .textSelection(.enabled)
@@ -261,6 +319,44 @@ struct FramebaseAssistantPanel: View {
                     }
                 }
             }
+
+            if !card.focusOptions.isEmpty {
+                Divider()
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Click an option to focus your similar image search:")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    ForEach(card.focusOptions) { opt in
+                        Button {
+                            Task {
+                                await assistant.runFocusOption(opt)
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "sparkle.magnifyingglass")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tint)
+                                Text(opt.label)
+                                    .font(.caption)
+                                    .multilineTextAlignment(.leading)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.white.opacity(0.08))
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(assistant.isProcessing)
+                    }
+                }
+            }
         }
         .padding(8)
         .background(
@@ -269,10 +365,72 @@ struct FramebaseAssistantPanel: View {
         )
     }
 
+    @ViewBuilder
+    private var attachmentPreviewBar: some View {
+        HStack(spacing: 8) {
+            if let url = assistant.attachedImageURL {
+                if let nsImg = NSImage(contentsOf: url) {
+                    Image(nsImage: nsImg)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Image(systemName: "photo.fill")
+                        .foregroundStyle(.tint)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(url.lastPathComponent)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                    Text("Vertex AI Gemini 3.8 Flash Vision Ready")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    assistant.clearAttachment()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Remove attached photo")
+            } else if !assistant.windowModel.selectedAssetIDs.isEmpty {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .foregroundStyle(.tint)
+                Text("1 selected browser photo available for Vision search")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Attach Selected") {
+                    assistant.attachSelectedLibraryAsset()
+                }
+                .controlSize(.mini)
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.04))
+    }
+
     private var composerBar: some View {
         HStack(spacing: 8) {
+            Button {
+                assistant.pickImageAttachment()
+            } label: {
+                Image(systemName: assistant.attachedImageURL != nil ? "photo.badge.checkmark.fill" : "photo.badge.plus")
+                    .font(.title3)
+                    .foregroundStyle(assistant.attachedImageURL != nil ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Upload or attach a reference photo for Vision similarity search")
+            .disabled(assistant.isProcessing)
+            .accessibilityIdentifier("assistant.uploadPhoto")
+
             TextField(
-                "Ask Framebase AI (e.g. 'Create an album with all blonde hairline photos')…",
+                "Upload a photo (+) or ask Framebase AI (e.g. 'Find all mushroom-head hair colors')…",
                 text: $assistant.inputText
             )
             .textFieldStyle(.roundedBorder)
@@ -288,7 +446,7 @@ struct FramebaseAssistantPanel: View {
                     .font(.title3)
             }
             .buttonStyle(.plain)
-            .disabled(assistant.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || assistant.isProcessing)
+            .disabled((assistant.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && assistant.attachedImageURL == nil) || assistant.isProcessing)
             .accessibilityIdentifier("assistant.send")
         }
         .padding(10)
