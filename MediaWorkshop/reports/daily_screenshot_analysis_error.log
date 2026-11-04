@@ -1,0 +1,101 @@
+Analyzing screenshots:   0%|          | 0/24 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 24/24 [00:00<00:00, 948.74it/s]
+Analyzing screenshots:   0%|          | 0/43 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 43/43 [00:00<00:00, 1822.73it/s]
+Analyzing screenshots:   0%|          | 0/1 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 1/1 [00:00<00:00, 924.06it/s]
+Analyzing screenshots:   0%|          | 0/12 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 12/12 [00:00<00:00, 2339.16it/s]
+Analyzing screenshots:   0%|          | 0/20 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 20/20 [00:00<00:00, 1286.16it/s]
+Analyzing screenshots:   0%|          | 0/14 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 14/14 [00:00<00:00, 1330.41it/s]
+Analyzing screenshots:   0%|          | 0/63 [00:00<?, ?it/s]Analyzing screenshots:   2%|▏         | 1/63 [00:00<00:00, 1436.90it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided
+Analyzing screenshots:   0%|          | 0/34 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 34/34 [00:00<00:00, 850.13it/s]
+Analyzing screenshots:   0%|          | 0/19 [00:00<?, ?it/s]Analyzing screenshots:   0%|          | 0/19 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided
+Analyzing screenshots:   0%|          | 0/3 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 3/3 [00:00<00:00, 1491.04it/s]
+Analyzing screenshots:   0%|          | 0/6 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 6/6 [00:00<00:00, 2189.86it/s]
+Analyzing screenshots:   0%|          | 0/8 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 8/8 [00:00<00:00, 1181.49it/s]
+Analyzing screenshots:   0%|          | 0/14 [00:00<?, ?it/s]Analyzing screenshots:   0%|          | 0/14 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided
+Analyzing screenshots:   0%|          | 0/7 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 7/7 [00:00<00:00, 1875.09it/s]
+Analyzing screenshots:   0%|          | 0/23 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 23/23 [00:00<00:00, 1362.40it/s]
+Analyzing screenshots:   0%|          | 0/1 [00:00<?, ?it/s]Analyzing screenshots: 100%|██████████| 1/1 [00:00<00:00, 216.27it/s]
+Analyzing screenshots:   0%|          | 0/38 [00:00<?, ?it/s]Analyzing screenshots:   0%|          | 0/38 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided
+Analyzing screenshots:   0%|          | 0/55 [00:00<?, ?it/s]Analyzing screenshots:   0%|          | 0/55 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided
+Analyzing screenshots:   0%|          | 0/48 [00:00<?, ?it/s]Analyzing screenshots:   0%|          | 0/48 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided
+Analyzing screenshots:   0%|          | 0/31 [00:00<?, ?it/s]Analyzing screenshots:   0%|          | 0/31 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided
+Analyzing screenshots:   0%|          | 0/34 [00:00<?, ?it/s]Analyzing screenshots:   0%|          | 0/34 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 129, in <module>
+    main()
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 99, in main
+    b64 = encode_image_to_base64(img_path)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vincent/04_systems/media_workshop/tools/photo_classifier/screenshot_automation/analyze_daily_screenshots.py", line 25, in encode_image_to_base64
+    return base64.b64encode(image_file.read()).decode('utf-8')
+                            ^^^^^^^^^^^^^^^^^
+OSError: [Errno 11] Resource deadlock avoided

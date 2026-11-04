@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../../06_code/framebase"
+		},
+		{
+			"path": "../../../../06_code/agents-studio"
+		}
+	],
+	"settings": {}
+}

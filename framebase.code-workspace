@@ -1,11 +1,18 @@
 {
 	"folders": [
 		{
+			"name": "Framebase 2.0 Monorepo (App · Cloud · AgentsStudio · MediaWorkshop)",
 			"path": "."
-		},
-		{
-			"path": "../../04_systems/media_workshop"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"python.defaultInterpreterPath": "/Users/vincent/06_code/framebase/.venv/bin/python",
+		"google.cloud.project": "ascensio-media-os",
+		"google.cloud.region": "us-central1",
+		"cloudcode.project": "ascensio-media-os",
+		"cloudcode.duetAI.project": "ascensio-media-os",
+		"geminicodeassist.project": "ascensio-media-os",
+		"cloudcode.autoDependencies": "off",
+		"cloudcode.cloudSdkVerbosityLevel": "warning"
+	}
 }

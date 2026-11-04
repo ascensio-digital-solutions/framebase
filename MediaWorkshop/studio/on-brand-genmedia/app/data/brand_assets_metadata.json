@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "primary_subject_type": "before_after_transformation",
+    "primary_subject_color_name": "#1B Natural Black with 10% Grey",
+    "primary_subject_color_hex_code": "#1A1918",
+    "name": "Vincent Canonical Before-and-After Transformation",
+    "has_person": "yes",
+    "category": "transformation_comparison",
+    "allow_modifications": "no",
+    "description": "Split before-and-after comparison showing Norwood 4 baldness on the left and a seamless ultra-thin skin hair system on the right. Natural temple integration, graduated undetectable hairline, authentic scalp appearance.",
+    "image_path": "assets/Vincent-before-after-white-square-800x800_rdayxd.jpg"
+  },
+  {
+    "id": 2,
+    "primary_subject_type": "hair_loss_before",
+    "primary_subject_color_name": "Biological Hair Natural Black",
+    "primary_subject_color_hex_code": "#1A1918",
+    "name": "Vincent Before Hair System (Norwood Scale)",
+    "has_person": "yes",
+    "category": "before_state",
+    "allow_modifications": "no",
+    "description": "Close-up front view of male pattern hair loss prior to hair system placement, showing thinning crown and receding hairline with intact biological hair at the temples and sides.",
+    "image_path": "assets/Vincent-Before_va8qqu.jpg"
+  },
+  {
+    "id": 3,
+    "primary_subject_type": "hair_system_after",
+    "primary_subject_color_name": "#1B Natural Black / Dark Brown",
+    "primary_subject_color_hex_code": "#1A1918",
+    "name": "Vincent After Hair System (Clean Styling)",
+    "has_person": "yes",
+    "category": "after_state",
+    "allow_modifications": "no",
+    "description": "After state showing modern styled men's hair system with exposed off-the-face front hairline, graduated baby hairs, natural scalp reflection, and perfect wave blend into biological temple hair.",
+    "image_path": "assets/Vincent-After_wsxybw.jpg"
+  },
+  {
+    "id": 4,
+    "primary_subject_type": "hair_system_hero",
+    "primary_subject_color_name": "Natural Dark Brown #2",
+    "primary_subject_color_hex_code": "#231B15",
+    "name": "Vincent High-Definition Transformation Hero",
+    "has_person": "yes",
+    "category": "after_state",
+    "allow_modifications": "no",
+    "description": "Editorial 85mm portrait demonstrating Swiss lace undetectable hairline, soft density graduation, natural crown swirl, and realistic skin pore texture.",
+    "image_path": "assets/transformation-vincent-portrait_qwtijm.png"
+  },
+  {
+    "id": 5,
+    "primary_subject_type": "subject_editorial",
+    "primary_subject_color_name": "Atelier Paper / Ink",
+    "primary_subject_color_hex_code": "#0D0D0D",
+    "name": "Vincent Editorial Portrait Natural Light",
+    "has_person": "yes",
+    "category": "after_state",
+    "allow_modifications": "no",
+    "description": "Natural ambient daylight editorial portrait of Vincent showcasing realistic hair movement, realistic sheen, and zero visible base edge.",
+    "image_path": "assets/About-Us-Vincent_zwrh5u.jpg"
+  }
+]

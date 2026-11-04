@@ -28,6 +28,8 @@ venv/
 agents-studio-key.json
 
 # MediaWorkshop local state, caches, galleries, and large staging exports
+gcloud/
+google-cloud-sdk/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

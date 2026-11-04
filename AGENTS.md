@@ -2,9 +2,14 @@
 
 Read `PROJECT.md` first, then this file, then `docs/MASTER_ROADMAP.md`, then the active phase plan before changing code. Use `docs/IMPLEMENTATION_PLAN.md` when work touches the completed Phase 1 foundation.
 
-## Repository location
+## Repository location & Monorepo Layout
 
-`/Users/vincent/02_ascensio_digital_solutions/products/framebase` is the sole canonical local checkout. Do not create a persistent sibling clone or worktree without Vincent's current approval.
+`/Users/vincent/06_code/framebase` (`ascensio-digital-solutions/framebase`) is the sole canonical local checkout and monorepo uniting:
+- `App/`, `UI/`, `Packages/FramebaseKit/`, `Design/`, `Resources/`: Native macOS Framebase 2.0 SwiftUI application & catalog engine.
+- `Cloud/`: Cloudflare Edge Platform (`Cloud/apps/api`, `mcp`, `media-delivery`, `media-bridge`, `contracts`) powered by the $10K Cloudflare Startups Grant.
+- `AgentsStudio/`: Domain AI agents (`hair_system_expert`, `marketing_director`, `image_reader`, `image_generator`, `inbox_manager`), RAG, SFT/DPO datasets, and evaluation suites.
+- `MediaWorkshop/`: Vision classifier & multi-pass sorter (`MediaWorkshop/classifier/`), Nano Banana 2.1 generative studio (`MediaWorkshop/studio/`), and canonical reference vault (`MediaWorkshop/references/`).
+- Google Cloud Project: `ascensio-media-os` (`Framebase Media OS`, service account `framebase-agent-sa@ascensio-media-os.iam.gserviceaccount.com`).
 
 ## Authority
 
