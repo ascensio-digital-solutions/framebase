@@ -40,20 +40,20 @@ from src.agents.shared.references import (  # noqa: E402
 )
 
 _tools_spec = importlib.util.spec_from_file_location(
-    "hair_system_expert_tools",
+    "src.agents.hair_system_expert.tools",
     AGENTS_STUDIO_ROOT / "src" / "agents" / "hair_system_expert" / "tools.py",
 )
 _tools_mod = importlib.util.module_from_spec(_tools_spec)  # type: ignore[arg-type]
+_tools_mod.__package__ = "src.agents.hair_system_expert"
 assert _tools_spec and _tools_spec.loader
 _tools_spec.loader.exec_module(_tools_mod)
 
-BANNED_CUSTOMER_WORDS = _tools_mod.BANNED_CUSTOMER_WORDS
-BASE_TYPES = _tools_mod.BASE_TYPES
-COLOR_CODES = _tools_mod.COLOR_CODES
+COLORS = _tools_mod.COLORS
 CURL_PATTERNS = _tools_mod.CURL_PATTERNS
-DENSITY_SCALE = _tools_mod.DENSITY_SCALE
-GREY_PERCENTAGES = _tools_mod.GREY_PERCENTAGES
+BASE_TYPES = _tools_mod.BASE_TYPES
 HAIR_ORIGINS = _tools_mod.HAIR_ORIGINS
+DENSITY_LABELS = _tools_mod.DENSITY_LABELS
+ATTACHMENT_METHODS = _tools_mod.ATTACHMENT_METHODS
 calculate_density = _tools_mod.calculate_density
 get_prompt_spec = _tools_mod.get_prompt_spec
 match_hair_color = _tools_mod.match_hair_color
@@ -130,16 +130,14 @@ def get_sorter_grounding_context() -> str:
     """Return a concise domain grounding rubric from The Hair Concierge Brain
     to inject into `multi_pass_sorter.py` and `nano_banana_studio.py` prompts.
     """
-    color_summary = ", ".join(
-        f"#{k} ({v.split('—')[0].strip()})" for k, v in COLOR_CODES.items()
-    )
+    color_summary = ", ".join(f"#{k} ({v})" for k, v in COLORS.items())
     curl_summary = ", ".join(
-        f"{k} ({v['rod_mm']} rod)" for k, v in CURL_PATTERNS.items()
+        f"{k} ({v['rod']} rod)" for k, v in CURL_PATTERNS.items()
     )
     return (
         "THE HAIR CONCIERGE BRAIN GROUNDING (`the-hair-concierge-2026`):\n"
         f"- Color Codes: {color_summary}\n"
-        f"- Grey Blends: {', '.join(GREY_PERCENTAGES.keys())} (heavier at temples)\n"
+        "- Grey Blends: #1B10 (10% grey), #1B20 (20% grey), #1B30 (30% grey), #1B40 (40% grey), #1B50 (50% grey) — heavier at temples\n"
         f"- Curl Patterns: {curl_summary}\n"
         f"- Base Types: {', '.join(BASE_TYPES.keys())}\n"
         "- Hairline Graduation Rule: Leading 0.5cm graduates 60-65% -> 40% with single bleached knots & irregular baby hairs.\n"

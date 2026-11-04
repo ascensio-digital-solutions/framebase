@@ -5,10 +5,13 @@ Every prompt includes exact technical specifications — never vague description
 """
 
 import json
-from typing import Optional, Literal
+from typing import Optional, Literal, Any
 from dataclasses import dataclass, asdict
 
-from google.adk import Context
+try:
+    from google.adk import Context
+except ImportError:
+    Context = Any  # type: ignore[misc,assignment]
 from google import genai
 from google.genai import types as genai_types
 
