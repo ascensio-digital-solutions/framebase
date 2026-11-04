@@ -44,13 +44,16 @@ Architecture:
 """
 
 import argparse
+import concurrent.futures
 import hashlib
 import io
 import json
 import os
 import re
+import socket
 import sqlite3
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -222,6 +225,8 @@ def load_image_jpeg_bytes(img_path: Path, max_dim: int = 1024) -> Optional[bytes
             return None
 
 
+socket.setdefaulttimeout(45.0)
+
 class VertexVisionClassifier:
     """Strictly wraps Google Cloud Vertex AI (`ascensio-media-os`, `global`, `gemini-3.8-flash`)
     so 100% of calls are billed to GCP credits (zero fallback to GEMINI_API_KEY).
@@ -231,7 +236,18 @@ class VertexVisionClassifier:
         self.project = project
         self.location = location
         self.model = model
-        self.client = genai.Client(vertexai=True, project=self.project, location=self.location)
+        self._local = threading.local()
+
+    @property
+    def client(self) -> genai.Client:
+        if not hasattr(self._local, "client"):
+            self._local.client = genai.Client(
+                vertexai=True,
+                project=self.project,
+                location=self.location,
+                http_options=types.HttpOptions(timeout=45000),
+            )
+        return self._local.client
 
     def classify_image(self, img_path: Path, context_hint: str = "") -> Optional[PhotoClassification]:
         jpeg_bytes = load_image_jpeg_bytes(img_path)
@@ -915,6 +931,7 @@ def run_gatekeeper(
     source_dir: Optional[Path],
     limit: int,
     apply_changes: bool,
+    workers: int = 5,
 ) -> List[Dict[str, Any]]:
     """
     Pass 1 (3-Pillar Gatekeeper):
@@ -954,78 +971,189 @@ def run_gatekeeper(
     selected = candidates[:limit]
     print(f"\n{'=' * 88}")
     print(f"PASS 1: 3-PILLAR GATEKEEPER (Vertex AI {MODEL_NAME} @ {PROJECT_ID})")
-    print(f"Evaluating: {len(selected)} assets | Mode: {'APPLY' if apply_changes else 'DRY-RUN'}")
+    print(f"Evaluating: {len(selected)} assets | Workers: {workers} | Mode: {'APPLY' if apply_changes else 'DRY-RUN'}")
     print(f"{'=' * 88}\n")
 
     hsc_router = FramebaseCatalogRouter(HSC_LIB) if (apply_changes and HSC_LIB.exists()) else None
     hsc_conn = hsc_router.connect() if hsc_router else None
 
     results: List[Dict[str, Any]] = []
-    for idx, (asset_id, filename, img_path) in enumerate(selected, 1):
+
+    def _worker(item: Tuple[Optional[str], str, Path]):
+        aid, fn, path = item
         t0 = time.time()
-        cls = classifier.classify_image(img_path, context_hint="Pass 1 3-Pillar Gatekeeper evaluation.")
+        cls = None
+        try:
+            cls = classifier.classify_image(path, context_hint="Pass 1 3-Pillar Gatekeeper evaluation.")
+        except Exception as ex:
+            print(f"[ERROR] Worker error on {fn}: {ex}", file=sys.stderr)
         elapsed = time.time() - t0
-        if not cls:
-            continue
+        return aid, fn, path, cls, elapsed
 
-        target_lib, target_folder, reason = determine_pass1_route(cls)
-        if apply_changes and hsc_router and hsc_conn and asset_id:
-            if target_lib == HSC_LIB.name:
-                dest_fid = hsc_router.ensure_folder_path(hsc_conn, target_folder)
-                hsc_conn.execute(
-                    "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
-                    (dest_fid, int(time.time() * 1000), asset_id),
-                )
-                hsc_router.attach_tags_and_assessment(
-                    hsc_conn,
-                    asset_id,
-                    cls,
-                    extra_tags=["verified:gemini-3.8-flash", "brain:the-hair-concierge-2026"],
-                )
-                hsc_conn.commit()
-            else:
-                archive_sub = (
-                    "09_archive/quarantine"
-                    if "quarantine" in target_folder
-                    else (
-                        "09_archive/routed-knowledge"
-                        if target_lib == KNOWLEDGE_LIB.name
-                        else "09_archive/routed-personal"
+    if workers <= 1:
+        for idx, (asset_id, filename, img_path) in enumerate(selected, 1):
+            aid, fn, path, cls, elapsed = _worker((asset_id, filename, img_path))
+            if not cls:
+                continue
+
+            target_lib, target_folder, reason = determine_pass1_route(cls)
+            if apply_changes and hsc_router and hsc_conn and aid:
+                if target_lib == HSC_LIB.name:
+                    dest_fid = hsc_router.ensure_folder_path(hsc_conn, target_folder)
+                    hsc_conn.execute(
+                        "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
+                        (dest_fid, int(time.time() * 1000), aid),
                     )
-                )
-                dest_fid = hsc_router.ensure_folder_path(hsc_conn, archive_sub)
-                hsc_conn.execute(
-                    "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
-                    (dest_fid, int(time.time() * 1000), asset_id),
-                )
-                hsc_router.attach_tags_and_assessment(
-                    hsc_conn,
-                    asset_id,
-                    cls,
-                    extra_tags=[
-                        "verified:gemini-3.8-flash",
-                        "brain:the-hair-concierge-2026",
-                        f"route-library:{slugify(target_lib)}",
-                        f"route-folder:{slugify(target_folder)}",
-                    ],
-                )
-                hsc_conn.commit()
+                    hsc_router.attach_tags_and_assessment(
+                        hsc_conn,
+                        aid,
+                        cls,
+                        extra_tags=["verified:gemini-3.8-flash", "brain:the-hair-concierge-2026"],
+                    )
+                    hsc_conn.commit()
+                else:
+                    archive_sub = (
+                        "09_archive/quarantine"
+                        if "quarantine" in target_folder
+                        else (
+                            "09_archive/routed-knowledge"
+                            if target_lib == KNOWLEDGE_LIB.name
+                            else "09_archive/routed-personal"
+                        )
+                    )
+                    dest_fid = hsc_router.ensure_folder_path(hsc_conn, archive_sub)
+                    hsc_conn.execute(
+                        "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
+                        (dest_fid, int(time.time() * 1000), aid),
+                    )
+                    hsc_router.attach_tags_and_assessment(
+                        hsc_conn,
+                        aid,
+                        cls,
+                        extra_tags=[
+                            "verified:gemini-3.8-flash",
+                            "brain:the-hair-concierge-2026",
+                            f"route-library:{slugify(target_lib)}",
+                            f"route-folder:{slugify(target_folder)}",
+                        ],
+                    )
+                    hsc_conn.commit()
 
-        record = {
-            "index": idx,
-            "asset_id": asset_id,
-            "filename": filename,
-            "target_library": target_lib,
-            "target_folder": target_folder,
-            "routing_reason": reason,
-            "latency_sec": round(elapsed, 2),
-            "classification": cls.model_dump(mode="json"),
-        }
-        results.append(record)
-        print(
-            f"[{idx}/{len(selected)}] {filename} -> {target_lib} :: `{target_folder}` ({elapsed:.2f}s)\n"
-            f"  -> {reason}"
-        )
+            record = {
+                "index": idx,
+                "asset_id": aid,
+                "filename": fn,
+                "target_library": target_lib,
+                "target_folder": target_folder,
+                "routing_reason": reason,
+                "latency_sec": round(elapsed, 2),
+                "classification": cls.model_dump(mode="json"),
+            }
+            results.append(record)
+            print(
+                f"[{idx}/{len(selected)}] {fn} -> {target_lib} :: `{target_folder}` ({elapsed:.2f}s)\n"
+                f"  -> {reason}"
+            )
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            batch_window = workers * 3
+            future_map = {
+                executor.submit(_worker, item): (item, time.time()) for item in selected[:batch_window]
+            }
+            remaining_queue = list(selected[batch_window:])
+
+            completed_idx = 0
+            while future_map:
+                done, _ = concurrent.futures.wait(
+                    future_map.keys(),
+                    timeout=30.0,
+                    return_when=concurrent.futures.FIRST_COMPLETED,
+                )
+                if not done:
+                    # Check for any stalled futures older than 50 seconds
+                    now_t = time.time()
+                    stalled = [fut for fut, (item, st_t) in future_map.items() if (now_t - st_t) > 50.0]
+                    for s_fut in stalled:
+                        item, st_t = future_map.pop(s_fut)
+                        s_fut.cancel()
+                        print(f"[WARN] Future for {item[1]} timed out (>50s); requeueing item.", file=sys.stderr)
+                        future_map[executor.submit(_worker, item)] = (item, time.time())
+                    continue
+
+                for fut in done:
+                    completed_idx += 1
+                    item, _ = future_map.pop(fut)
+                    try:
+                        aid, fn, path, cls, elapsed = fut.result(timeout=5.0)
+                    except Exception as ex:
+                        print(f"[{completed_idx}/{len(selected)}] {item[1]} -> Worker exception: {ex}", file=sys.stderr)
+                        continue
+
+                    if remaining_queue:
+                        nxt = remaining_queue.pop(0)
+                        future_map[executor.submit(_worker, nxt)] = (nxt, time.time())
+
+                    if not cls:
+                        continue
+
+                    target_lib, target_folder, reason = determine_pass1_route(cls)
+                    if apply_changes and hsc_router and hsc_conn and aid:
+                        if target_lib == HSC_LIB.name:
+                            dest_fid = hsc_router.ensure_folder_path(hsc_conn, target_folder)
+                            hsc_conn.execute(
+                                "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
+                                (dest_fid, int(time.time() * 1000), aid),
+                            )
+                            hsc_router.attach_tags_and_assessment(
+                                hsc_conn,
+                                aid,
+                                cls,
+                                extra_tags=["verified:gemini-3.8-flash", "brain:the-hair-concierge-2026"],
+                            )
+                            hsc_conn.commit()
+                        else:
+                            archive_sub = (
+                                "09_archive/quarantine"
+                                if "quarantine" in target_folder
+                                else (
+                                    "09_archive/routed-knowledge"
+                                    if target_lib == KNOWLEDGE_LIB.name
+                                    else "09_archive/routed-personal"
+                                )
+                            )
+                            dest_fid = hsc_router.ensure_folder_path(hsc_conn, archive_sub)
+                            hsc_conn.execute(
+                                "UPDATE assets SET parent_folder_id = ?, updated_at_ms = ? WHERE id = ?",
+                                (dest_fid, int(time.time() * 1000), aid),
+                            )
+                            hsc_router.attach_tags_and_assessment(
+                                hsc_conn,
+                                aid,
+                                cls,
+                                extra_tags=[
+                                    "verified:gemini-3.8-flash",
+                                    "brain:the-hair-concierge-2026",
+                                    f"route-library:{slugify(target_lib)}",
+                                    f"route-folder:{slugify(target_folder)}",
+                                ],
+                            )
+                            hsc_conn.commit()
+
+                    record = {
+                        "index": completed_idx,
+                        "asset_id": aid,
+                        "filename": fn,
+                        "target_library": target_lib,
+                        "target_folder": target_folder,
+                        "routing_reason": reason,
+                        "latency_sec": round(elapsed, 2),
+                        "classification": cls.model_dump(mode="json"),
+                    }
+                    results.append(record)
+                    print(
+                        f"[{completed_idx}/{len(selected)}] {fn} -> {target_lib} :: `{target_folder}` ({elapsed:.2f}s)\n"
+                        f"  -> {reason}"
+                    )
 
     if hsc_conn:
         hsc_conn.close()
@@ -1071,6 +1199,12 @@ def main() -> None:
         help="Apply folder creations, asset moves, and tag attachments to Framebase SQLite catalogs",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=5,
+        help="Number of concurrent worker threads for Vertex AI calls (default: 5)",
+    )
+    parser.add_argument(
         "--json-out",
         type=Path,
         default=None,
@@ -1109,6 +1243,7 @@ def main() -> None:
             source_dir=args.source_dir,
             limit=args.limit,
             apply_changes=apply_changes,
+            workers=args.workers,
         )
 
     if args.json_out:
