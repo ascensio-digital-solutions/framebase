@@ -13,7 +13,7 @@ Upload to Google Cloud Storage → create Data Store in Agent Studio → ground 
 A hair system is a custom-engineered cranial prosthesis made from 100% human hair,
 hand-tied or injected into an ultra-thin base. It is designed to replace hair lost
 to male pattern baldness (androgenetic alopecia) with a completely natural,
-undetectable result.
+natural-looking result.
 
 **What it is NOT:** a wig, a toupee, a hairpiece, a helmet, or synthetic.
 Every system is custom-made to the client's exact head shape, hair color,
@@ -45,11 +45,11 @@ density, curl pattern, and attachment preference.
 
 ### Swiss Lace
 - Material: Fine Swiss lace mesh
-- Appearance: Most undetectable lace. Mesh disappears against scalp.
+- Appearance: Most natural-looking lace. Mesh disappears against scalp.
 - Realism: Maximum (10/10)
 - Durability: Low (3/10)
 - Lifespan: 1.5–2 months
-- Best for: Maximum undetectability, all-over ventilation, hot climates, exposed hairlines
+- Best for: The most natural-looking edge, all-over ventilation, hot climates, exposed hairlines
 - Care: Delicate handling. Lace-specific cleaning products. Never pull or stretch.
 - Cost: Premium
 
@@ -65,7 +65,7 @@ density, curl pattern, and attachment preference.
 
 ### Monofilament (Mono)
 - Material: Monofilament polyester mesh
-- Appearance: Visible perimeter texture. Less undetectable.
+- Appearance: Visible perimeter texture. Less natural-looking.
 - Realism: Moderate (5/10)
 - Durability: Maximum (9/10)
 - Lifespan: 4–6 months
@@ -75,7 +75,7 @@ density, curl pattern, and attachment preference.
 
 ### Hybrid (Skin Front + Lace Body)
 - Construction: Ultra-thin skin at front 2cm + lace mesh body
-- Appearance: Undetectable hairline + breathable crown
+- Appearance: Natural-looking hairline + breathable crown
 - Realism: Excellent (9/10)
 - Durability: Medium (5/10)
 - Lifespan: 2–3 months
@@ -184,7 +184,7 @@ density" for a man of that age.
 
 ## 7. Front Hairline Graduation
 
-The front hairline is the single most important factor in undetectability.
+The front hairline is the single most important factor in a natural look.
 A detectable hairline ruins the entire system.
 
 ### The leading 0.5cm MUST have:
@@ -199,7 +199,7 @@ A detectable hairline ruins the entire system.
 - **Blunt edge**: A straight, sharp cutoff where the base ends. Dead giveaway.
 - **Visible lace grid**: Any mesh pattern visible through the hairline.
 - **Dark knots**: Unbleached knots create a visible dotted line.
-- **Uniform density**: Perfectly even density looks artificial. Nature is irregular.
+- **Uniform density**: Completely even density looks artificial. Nature is irregular.
 - **No baby hairs**: A hairline without fine, wispy edge hairs looks painted on.
 
 ---
@@ -223,38 +223,21 @@ A detectable hairline ruins the entire system.
 - Hold: 2–4 weeks
 - Routine: Apply 3–4 thin layers to scalp. Allow each to go clear.
   Press base into adhesive. Cold-air dry to speed curing.
-- Best for: Lace bases, undetectable hairlines, maximum hold.
+- Best for: Lace bases, natural-looking hairlines, maximum hold.
 
 ### Hybrid Bond (Tape + Adhesive)
 - Products: Walker Ultra Hold Tape (perimeter) + Ghost Bond XL (front 1cm)
 - Hold: 1–2 weeks
 - Routine: Tape sides and back perimeter. Thin adhesive layer on front 1cm only.
-- Best for: Most clients. Secure hold + undetectable front hairline.
+- Best for: Most clients. Secure hold + natural-looking front hairline.
 
 ---
 
-## 9. Before/After Transformation Standards
+## 9. Before/After Images: Policy
 
-### Left frame (Before):
-- Natural Norwood 3–6 male pattern baldness
-- Authentic scalp with visible pores
-- Remaining biological side hair clearly visible
-- Neutral expression, same wardrobe as after frame
-- Clinical neutral lighting
+Before-and-after, testimonial and customer images are **never AI-generated** (Approved Claims, Notion, 2026-10-29). Proof imagery is consented real photography only, sourced from the HSC Library (`03_people/before-after`, HMAC-protected in R2).
 
-### Right frame (After):
-- SAME man — identical face, bone structure, eye color, skin tone
-- Seamless hair system restoring natural density
-- Hairline with full graduation: 60–65% → 40%, bleached knots, baby hairs
-- No visible base edge, lace grid, or dark knots
-- SAME lighting, SAME camera angle, SAME wardrobe, SAME expression
-
-### Technical requirements for transformation images:
-- Same focal length and aperture on both frames
-- Same white balance and color temperature
-- Same framing (face occupies same position and size in frame)
-- Pixel-level facial identity match (not just "similar" — the same person)
-- The only difference should be the hair
+The agent may generate single portraits of a hair system result. It must not generate a "before" balding state, a side-by-side comparison, a transformation video, or any image presented as a real customer.
 
 ---
 

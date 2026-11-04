@@ -41,16 +41,16 @@ CURL_PATTERNS = {
 BASE_TYPES = {
     "ultra_thin_skin": "0.03mm ultra-thin transparent polyurethane skin base, near-invisible edge, "
                        "scalp-like translucency, natural pore reflection visible through base, "
-                       "most undetectable skin option",
+                       "finest, least visible skin edge",
     "thin_skin":       "0.06-0.08mm thin polyurethane skin base, barely visible edge, "
                        "good scalp realism, durable",
-    "swiss_lace":      "fine delicate Swiss lace mesh base, most undetectable lace, "
+    "swiss_lace":      "fine delicate Swiss lace mesh base, finest and least visible lace, "
                        "disappears against scalp, maximum ventilation",
     "french_lace":     "durable French lace mesh base, slightly more visible texture than Swiss, "
                        "good ventilation, balanced durability",
     "mono":            "monofilament mesh base, visible perimeter texture, maximum durability, "
                        "used for active clients",
-    "hybrid":          "ultra-thin skin at front 2cm hairline for undetectability + "
+    "hybrid":          "ultra-thin skin at front 2cm hairline for a soft, natural-looking edge + "
                        "lace mesh body for breathability, seamless material transition",
 }
 
@@ -85,10 +85,10 @@ ATTACHMENT_METHODS = {
     "tape_extended": "Walker Ultra Hold tape full perimeter, 1-2 week hold, "
                      "secure bond with minimal visible edge",
     "liquid_bond":   "Ghost Bond Platinum adhesive applied directly to scalp, "
-                     "2-4 week hold, truly invisible bond — no edge visible at all, "
+                     "2-4 week hold, no bond edge visible in frame, "
                      "best for exposed hairlines",
     "hybrid_bond":   "tape at sides and back perimeter, Ghost Bond adhesive at front 1cm hairline, "
-                     "secure hold with most undetectable front hairline",
+                     "secure hold with the softest-looking front hairline",
 }
 
 LIGHTING_STYLES = {
@@ -108,7 +108,7 @@ CAMERA_SPECS = {
     "lifestyle":     "35mm f/2.0 environmental portrait, context visible, "
                      "natural perspective, subject in real environment",
     "closeup":       "100mm f/2.8 macro detail, hairline and scalp pore detail visible, "
-                     "demonstrates undetectability",
+                     "shows natural hairline and knot detail",
     "full_body":     "50mm f/2.8 full body, subject from head to waist, "
                      "shows how hair system integrates with full appearance",
 }
@@ -133,7 +133,6 @@ class HairSystemSpec:
     age_range: str = "30-40"
     ethnicity: str = ""  # descriptive, not prescriptive
     face_shape: str = ""
-    norwood_before: int = 4
     environment: str = "clean studio backdrop, neutral grey"
     mood: str = "confident, natural, professional"
     # Reference image for subject consistency
@@ -174,15 +173,10 @@ def build_image_prompt(spec: HairSystemSpec, image_type: str = "portrait") -> st
     face_str = f"with {spec.face_shape} face shape" if spec.face_shape else ""
     age_str = f"age {spec.age_range}" if spec.age_range else ""
 
-    if image_type == "transformation_before":
-        return _build_before_prompt(spec)
-    elif image_type == "transformation_after":
-        return _build_after_prompt(spec)
-
     # ── Standard portrait prompt ──────────────────────────────────────────
 
     prompt = f"""A photorealistic portrait of a {ethnicity_str} {age_str} {face_str},
-wearing an undetectable men's hair replacement system, photographed with {camera}.
+wearing a men's hair replacement system that looks like naturally growing hair, photographed with {camera}.
 
 HAIR SYSTEM SPECIFICATIONS:
 - Color: {color_name} (code #{spec.color_code}) {grey_str}
@@ -193,7 +187,7 @@ HAIR SYSTEM SPECIFICATIONS:
 - Attachment: {attachment}
 
 HAIRLINE (CRITICAL REALISM):
-- The front hairline edge is completely undetectable — 60-65% graduated density at the leading 0.5cm, decreasing naturally to the edge
+- The front hairline edge reads as natural growth — 60-65% graduated density at the leading 0.5cm, decreasing naturally to the edge
 - Single bleached knots throughout the hairline — no dark dots or visible knot patterns
 - Fine wispy baby hairs placed irregularly along the hairline for natural transition
 - Natural scalp appearance with visible pore texture showing through the transparent base
@@ -229,100 +223,18 @@ NEGATIVE CONSTRAINTS:
     return prompt
 
 
-def _build_before_prompt(spec: HairSystemSpec) -> str:
-    """Build the 'before' frame of a transformation comparison."""
-    return f"""A photorealistic clinical before-photo of a man age {spec.age_range},
-showing natural male pattern baldness, Norwood stage {spec.norwood_before}.
-
-BALDING PATTERN:
-- Visible scalp with receded hairline at Norwood {spec.norwood_before}
-- Remaining natural biological hair at sides and back (donor area)
-- Natural scalp skin with visible pores, slight natural scalp shine
-- Thinning or absent hair at crown and front
-
-PHOTOGRAPHY:
-- Clinical neutral lighting, even illumination
-- Straight-on or slight 3/4 angle portrait framing
-- Neutral expression, no makeup, authentic appearance
-- Same framing and angle that will be used for the after-photo
-
-TECHNICAL:
-- Photorealistic, unretouched clinical quality
-- Genuine skin texture
-- Neutral grey or white background"""
-
-
-def _build_after_prompt(spec: HairSystemSpec) -> str:
-    """Build the 'after' frame of a transformation comparison.
-    Must match the before frame's face identity exactly."""
-    color_name = COLORS.get(spec.color_code, spec.color_code)
-    curl = CURL_PATTERNS.get(spec.curl_pattern, {})
-    base = BASE_TYPES.get(spec.base_type, "")
-    origin = HAIR_ORIGINS.get(spec.hair_origin, "")
-    attachment = ATTACHMENT_METHODS.get(spec.attachment, "")
-
-    return f"""A photorealistic after-photo of the SAME MAN as the before image —
-identical face, identical bone structure, identical eye color, identical skin tone.
-
-He is now wearing an undetectable custom hair replacement system.
-
-HAIR SYSTEM:
-- Color: {color_name} (#{spec.color_code})
-- Curl: {spec.curl_pattern} ({curl.get('rod', '')}) — {curl.get('desc', '')}
-- Density: {spec.density_percent}%
-- Hair: {origin}
-- Base: {base}
-- Attachment: {attachment}
-
-UNDETECTABLE HAIRLINE:
-- 60-65% graduated density at leading 0.5cm
-- Single bleached knots, invisible
-- Fine baby hairs at irregular intervals
-- Scalp pore texture visible through transparent base
-- ZERO visible edge, ZERO grid, ZERO blunt line
-
-STYLE:
-- {spec.style_description}
-- Natural movement, individual hair strands visible
-- The hair system restores a completely natural appearance
-
-PHOTOGRAPHY:
-- IDENTICAL framing, angle, lighting, and background as the before photo
-- Same neutral clinical lighting
-- Same neutral expression
-- Same wardrobe
-
-TECHNICAL:
-- Photorealistic, same camera and lens as before photo
-- Same skin texture, same facial features
-- The hair system is completely indistinguishable from biological growing hair
-- This must look like the SAME person who gained their hair back"""
-
-
 def build_video_prompt(spec: HairSystemSpec, video_type: str = "lifestyle") -> str:
     """Build a video generation prompt."""
     color_name = COLORS.get(spec.color_code, spec.color_code)
     curl = CURL_PATTERNS.get(spec.curl_pattern, {})
 
-    if video_type == "transformation":
-        return (
-            f"Video transformation reveal: A man age {spec.age_range} with Norwood "
-            f"{spec.norwood_before} male pattern baldness transitions to wearing a "
-            f"completely undetectable custom hair system. Color {color_name}, "
-            f"{spec.curl_pattern} {curl.get('rod', '')} texture, "
-            f"{spec.density_percent}% density. The transformation is seamless — "
-            f"the hairline is perfectly natural with graduated density and baby hairs. "
-            f"Same man throughout, photorealistic, cinematic lighting, 4K. "
-            f"No visible base edge. No lace grid. The hair moves naturally."
-        )
-
     if video_type == "hair_movement":
         return (
-            f"Short cinematic video clip of a man wearing an undetectable hair system. "
+            f"Short cinematic video clip of a man wearing a natural-looking hair system. "
             f"Color {color_name}, {spec.curl_pattern} {curl.get('rod', '')}, "
             f"{spec.density_percent}% density. The camera circles slowly around his head "
             f"while he turns naturally. His hair moves with natural physics — wind moves "
-            f"through it, individual strands shift. The hairline is completely invisible. "
+            f"through it, individual strands shift. No base edge is visible at the hairline. "
             f"Natural outdoor lighting, photorealistic, 4K cinematic quality. "
             f"No visible base, no wig-like stiffness, authentic human hair movement."
         )
@@ -330,11 +242,11 @@ def build_video_prompt(spec: HairSystemSpec, video_type: str = "lifestyle") -> s
     # Default: lifestyle
     return (
         f"Cinematic video clip of a confident man age {spec.age_range} wearing an "
-        f"undetectable hair replacement system. Color {color_name}, "
+        f"natural-looking hair replacement system. Color {color_name}, "
         f"{spec.curl_pattern} {curl.get('rod', '')} texture, "
         f"{spec.density_percent}% density. {spec.style_description}. "
         f"He is {spec.environment}. Natural movement, relaxed confidence. "
-        f"The hair system is completely undetectable — natural hairline with "
+        f"The hair system reads as natural growth — soft hairline with "
         f"graduated density, baby hairs visible at close range. "
         f"Photorealistic, 4K, cinematic lighting. Hair moves naturally with physics. "
         f"No visible base edge, no synthetic appearance."
@@ -475,106 +387,6 @@ def generate_hair_system_image(
         }
 
 
-def generate_transformation_comparison(
-    color_code: str = "1B",
-    grey_percentage: int = 0,
-    curl_pattern: str = "slight_wave",
-    density_percent: int = 95,
-    base_type: str = "ultra_thin_skin",
-    hair_origin: str = "indian_remy",
-    style_description: str = "natural textured crop with side part",
-    age_range: str = "30-35",
-    norwood_before: int = 4,
-    ethnicity: str = "",
-    reference_image_uri: Optional[str] = None,
-    tool_context: Optional[Context] = None,
-) -> dict:
-    """Generate a side-by-side before/after transformation comparison.
-
-    Generates two images: the before (male pattern baldness) and after (hair system).
-    Both frames preserve the same facial identity, bone structure, lighting, and angle.
-
-    Args:
-        color_code: Hair color code for the after image.
-        grey_percentage: Grey blend percentage.
-        curl_pattern: Curl pattern for the after image.
-        density_percent: Density for the after image.
-        base_type: Base material for the after image.
-        hair_origin: Hair origin for the after image.
-        style_description: Hairstyle description for the after image.
-        age_range: Subject age range.
-        norwood_before: Norwood stage for the before image (1-7).
-        ethnicity: Descriptive ethnicity for subject consistency.
-        reference_image_uri: Optional reference photo of the actual client.
-                             CRITICAL for subject consistency between frames.
-
-    Returns:
-        Dict with both image generation results.
-    """
-    spec = HairSystemSpec(
-        color_code=color_code,
-        grey_percentage=grey_percentage,
-        curl_pattern=curl_pattern,
-        density_percent=density_percent,
-        base_type=base_type,
-        hair_origin=hair_origin,
-        style_description=style_description,
-        age_range=age_range,
-        norwood_before=norwood_before,
-        ethnicity=ethnicity,
-        reference_image_uri=reference_image_uri,
-    )
-
-    before_prompt = build_image_prompt(spec, image_type="transformation_before")
-    after_prompt = build_image_prompt(spec, image_type="transformation_after")
-
-    results = {"status": "generating", "before_path": None, "after_path": None}
-    errors = []
-
-    try:
-        import base64, os, time
-        out_dir = os.path.join(os.path.dirname(__file__), ".adk", "generated")
-        os.makedirs(out_dir, exist_ok=True)
-        client = genai.Client()
-
-        # Generate both frames
-        for frame_type, prompt_text in [("before", before_prompt), ("after", after_prompt)]:
-            contents = [genai_types.Part.from_text(text=prompt_text)]
-
-            if reference_image_uri and frame_type == "after":
-                contents.insert(0, genai_types.Part.from_uri(
-                    file_uri=reference_image_uri,
-                    mime_type="image/jpeg",
-                ))
-
-            response = client.models.generate_content(
-                model="gemini-3.1-flash-image",
-                contents=genai_types.Content(role="user", parts=contents),
-                config=genai_types.GenerateContentConfig(
-                    response_modalities=["IMAGE", "TEXT"],
-                ),
-            )
-
-            for part in response.candidates[0].content.parts:
-                if part.inline_data and part.inline_data.mime_type.startswith("image/"):
-                    ext = part.inline_data.mime_type.split("/")[-1]
-                    path = os.path.join(out_dir, f"transformation_{frame_type}_{int(time.time())}.{ext}")
-                    with open(path, "wb") as f:
-                        f.write(part.inline_data.data)
-                    results[f"{frame_type}_path"] = path
-                    break
-
-        results["status"] = "generated"
-        results["spec"] = asdict(spec)
-        results["message"] = f"Before/after transformation generated. Before: {results['before_path']}, After: {results['after_path']}"
-
-    except Exception as e:
-        results["status"] = "partial" if any(results.values()) else "error"
-        results["error"] = str(e)
-
-    return results
-
-
 def generate_hair_system_video(
     video_type: str = "lifestyle",
     color_code: str = "1B",
@@ -584,7 +396,6 @@ def generate_hair_system_video(
     hair_origin: str = "indian_remy",
     style_description: str = "natural textured crop with side part",
     age_range: str = "30-35",
-    norwood_before: int = 4,
     duration_seconds: int = 8,
     reference_image_uri: Optional[str] = None,
     tool_context: Optional[Context] = None,
@@ -595,7 +406,7 @@ def generate_hair_system_video(
     for 4K cinematic output).
 
     Args:
-        video_type: Type of video. One of: lifestyle, transformation, hair_movement.
+        video_type: Type of video. One of: lifestyle, hair_movement.
         color_code: Hair color code.
         curl_pattern: Curl pattern.
         density_percent: Hair density.
@@ -603,7 +414,6 @@ def generate_hair_system_video(
         hair_origin: Hair origin type.
         style_description: Hairstyle description.
         age_range: Subject age range.
-        norwood_before: Norwood stage (for transformation videos).
         duration_seconds: Video duration in seconds (max 8 for Gemini Omni Flash).
         reference_image_uri: Optional reference image for subject consistency.
 
@@ -618,9 +428,18 @@ def generate_hair_system_video(
         hair_origin=hair_origin,
         style_description=style_description,
         age_range=age_range,
-        norwood_before=norwood_before,
         reference_image_uri=reference_image_uri,
     )
+
+    if video_type not in ("lifestyle", "hair_movement"):
+        return {
+            "status": "refused",
+            "message": (
+                "Only 'lifestyle' and 'hair_movement' videos are available. Before-and-after "
+                "or transformation media is never AI-generated (Approved Claims); use consented "
+                "real customer media from the HSC Library instead."
+            ),
+        }
 
     prompt = build_video_prompt(spec, video_type)
 
@@ -741,7 +560,7 @@ def get_prompt_spec(
             "hair_origins": list(HAIR_ORIGINS.keys()),
             "lighting": list(LIGHTING_STYLES.keys()),
             "camera_specs": list(CAMERA_SPECS.keys()),
-            "video_types": ["lifestyle", "transformation", "hair_movement"],
+            "video_types": ["lifestyle", "hair_movement"],
         }
 
     return result

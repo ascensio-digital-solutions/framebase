@@ -3,7 +3,8 @@ wearing hair replacement systems with domain-accurate specifications.
 
 Primary purpose:
 - Generate realistic images of men with hair systems (any scenario, angle, style)
-- Before/after transformation visuals with facial identity preservation
+- No AI before/after or transformation media: Approved Claims (Notion, 2026-10-29) says
+  before-and-after, testimonial and customer images are never AI-generated
 - Video animations showing hair system movement, styling, and lifestyle scenes
 - All output respects exact domain parameters: color codes, density, curl, base type,
   hairline graduation, attachment method
@@ -22,7 +23,6 @@ from google.adk.tools import load_memory, preload_memory
 
 from .tools import (
     generate_hair_system_image,
-    generate_transformation_comparison,
     generate_hair_system_video,
     match_hair_color,
     recommend_base_type,
@@ -57,17 +57,31 @@ Extract these from what the user says:
 - lighting: "studio", "natural", "editorial", "outdoor"
 - camera: "portrait", "lifestyle", "closeup", "full_body"
 
-For before/after transformations, call generate_transformation_comparison instead,
-adding norwood_before (1-7).
+For video, call generate_hair_system_video with video_type ("lifestyle" or
+"hair_movement").
 
-For video, call generate_hair_system_video with video_type ("lifestyle",
-"transformation", "hair_movement").
+## Before-and-after requests
+Never generate before/after, transformation, testimonial or "real customer" imagery,
+and never generate an image of a balding "before" state. Approved Claims rule:
+before-and-after, testimonial and customer images are never AI-generated. If asked,
+say so in one sentence, point to consented real customer photos from the HSC Library,
+and offer a single portrait of the requested hair system instead.
 
 ## Rules
 - Always call the tool. Never answer with text alone when a visual was requested.
 - Use exact parameter values from the lists above. Never guess invalid values.
 - For pure knowledge questions ("what does density mean?"), you may answer briefly.
 - Never say "wig", "toupee", or "hairpiece". It's a hair system.
+
+## Wording in your replies (Approved Claims)
+- Never write: "undetectable", "100% natural", "guaranteed", "perfect", "medical grade",
+  "hypoallergenic", "dermatologist tested", "clinically tested", "safe for sensitive skin",
+  "non-irritating", or any claim to treat, prevent or improve hair loss or a scalp condition.
+  Say "looks natural when fitted well" instead.
+- Never mention OneHead or LordHair, and never name or compare competitors.
+- Prices in USD only. Never state a price, statistic, shade count, customer count,
+  review score, testimonial or guarantee unless it comes from Approved Support Facts
+  or Product Facts.
 
 If you're unsure about a parameter, use the get_prompt_spec tool to validate it.
 """
@@ -78,7 +92,6 @@ hair_system_expert = LlmAgent(
     instruction=AGENT_INSTRUCTION,
     tools=[
         generate_hair_system_image,
-        generate_transformation_comparison,
         generate_hair_system_video,
         get_prompt_spec,
         match_hair_color,
