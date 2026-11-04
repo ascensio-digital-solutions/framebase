@@ -13,35 +13,58 @@ struct FoundationInspector: View {
     @State private var selectedCDNVariant = ""
 
     var body: some View {
-        Group {
-            if model.selectedAssetIDs.isEmpty {
-                ContentUnavailableView(
-                    "No Selection",
-                    systemImage: "info.circle",
-                    description: Text("Select an image to inspect its details.")
+        VStack(spacing: 0) {
+            Picker(
+                "Mode",
+                selection: Binding(
+                    get: { model.isAssistantTabActive },
+                    set: { model.isAssistantTabActive = $0 }
                 )
-            } else if model.inspectorSelectionIsLimited {
-                Form {
-                    Section("Selection") {
-                        LabeledContent("Assets", value: model.selectedAssetIDs.count.formatted())
-                        Text("Detailed aggregation is limited to selections of 500 images so selecting the entire library stays responsive.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Section("Apply to selection") {
-                        HStack {
-                            Button("Favorite All") { Task { await model.setFavorite(true) } }
-                            Button("Unfavorite All") { Task { await model.setFavorite(false) } }
+            ) {
+                Label("Inspector", systemImage: "info.circle").tag(false)
+                Label("AI Assistant", systemImage: "sparkles").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .accessibilityIdentifier("inspector.modePicker")
+
+            Divider()
+
+            if model.isAssistantTabActive, let assistant = model.assistantController {
+                FramebaseAssistantPanel(assistant: assistant)
+            } else {
+                Group {
+                    if model.selectedAssetIDs.isEmpty {
+                        ContentUnavailableView(
+                            "No Selection",
+                            systemImage: "info.circle",
+                            description: Text("Select an image to inspect its details, or switch to the AI Assistant tab above.")
+                        )
+                    } else if model.inspectorSelectionIsLimited {
+                        Form {
+                            Section("Selection") {
+                                LabeledContent("Assets", value: model.selectedAssetIDs.count.formatted())
+                                Text("Detailed aggregation is limited to selections of 500 images so selecting the entire library stays responsive.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Section("Apply to selection") {
+                                HStack {
+                                    Button("Favorite All") { Task { await model.setFavorite(true) } }
+                                    Button("Unfavorite All") { Task { await model.setFavorite(false) } }
+                                }
+                            }
                         }
+                        .formStyle(.grouped)
+                    } else if model.selectedAssets.isEmpty {
+                        ProgressView("Loading selection…")
+                    } else if model.selectedAssets.count == 1, let asset = model.selectedAssets.first {
+                        singleAssetInspector(asset)
+                    } else {
+                        multiAssetInspector(model.selectedAssets)
                     }
                 }
-                .formStyle(.grouped)
-            } else if model.selectedAssets.isEmpty {
-                ProgressView("Loading selection…")
-            } else if model.selectedAssets.count == 1, let asset = model.selectedAssets.first {
-                singleAssetInspector(asset)
-            } else {
-                multiAssetInspector(model.selectedAssets)
             }
         }
         .scrollContentBackground(.hidden)

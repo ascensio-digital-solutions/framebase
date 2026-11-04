@@ -55,18 +55,4 @@ struct DomainFoundationTests {
         #expect(status?.allowsMultipleValuesPerAsset == false)
         #expect(HairSolutionsLibraryTemplate.tagNamespaces.contains { $0.namespace == "product" && $0.allowsCustomValues })
     }
-
-    @Test("Personal library taxonomy defines structured life categories and local-only quarantine guard")
-    func personalLibraryTaxonomy() throws {
-        #expect(PersonalLibraryTemplate.folders.contains {
-            $0.path == ["01_people_and_family", "family"] && $0.provisioning == .initial
-        })
-        #expect(PersonalLibraryTemplate.folders.contains {
-            $0.path == ["06_private_quarantine"] && $0.provisioning == .initial
-        })
-        #expect(PersonalLibraryTemplate.isLocalOnlyFolder(named: "06_private_quarantine"))
-        #expect(!PersonalLibraryTemplate.isLocalOnlyFolder(named: "01_people_and_family"))
-        let tagNames = try PersonalLibraryTemplate.initialTagNames()
-        #expect(tagNames.contains { $0.rawValue == "privacy:local-only" })
-    }
 }

@@ -160,6 +160,8 @@ final class LibraryWindowModel {
     var workflowTagUndo: WorkflowTagUndo?
     var pendingFolderDeletion: FolderDeletionPrompt?
     var isInspectorVisible = true
+    var isAssistantTabActive = false
+    var assistantController: LibraryAssistantController!
     var thumbnailSize: Double = 176 {
         didSet {
             guard thumbnailSize != oldValue else { return }
@@ -192,6 +194,16 @@ final class LibraryWindowModel {
 
     init(container: AppContainer) {
         self.container = container
+        self.assistantController = LibraryAssistantController(windowModel: self)
+    }
+
+    func toggleAssistantPanel() {
+        if !isInspectorVisible {
+            isInspectorVisible = true
+            isAssistantTabActive = true
+        } else {
+            isAssistantTabActive.toggle()
+        }
     }
 
     deinit {

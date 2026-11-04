@@ -99,11 +99,6 @@ struct LibraryWindowView: View {
                             }
                         }
                     }
-                    if !model.container.knownLibraries.contains(where: { $0.space == .knowledge }) {
-                        Button("Create Knowledge Library") {
-                            Task { await model.container.createLibrary(for: .knowledge) }
-                        }
-                    }
                 } label: {
                     Label(model.container.activeLibrary?.displayName ?? "Libraries", systemImage: "rectangle.3.group")
                 }
@@ -278,6 +273,16 @@ struct LibraryWindowView: View {
                     Image(systemName: "photo.fill")
                 }
                 .frame(width: 170)
+
+                Button {
+                    model.toggleAssistantPanel()
+                    storedInspectorVisible = model.isInspectorVisible
+                } label: {
+                    Label("AI Assistant", systemImage: "sparkles")
+                }
+                .keyboardShortcut("j", modifiers: .command)
+                .help("Toggle Framebase 2.0 AI Assistant (⌘J)")
+                .accessibilityIdentifier("toolbar.aiAssistant")
 
                 Button {
                     inspectorBinding.wrappedValue.toggle()

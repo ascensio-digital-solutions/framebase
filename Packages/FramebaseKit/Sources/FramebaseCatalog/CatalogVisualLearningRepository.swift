@@ -46,6 +46,46 @@ public struct CatalogVisualLearningRepository: VisualLearningRepository, Sendabl
         }
     }
 
+    public func allLatestAssessments() async throws -> [AssetID: PhotoAssessment] {
+        try await databasePool.read { db in
+            let rows = try Row.fetchAll(db, sql: "SELECT * FROM visual_assessments ORDER BY captured_at_ms ASC")
+            var map: [AssetID: PhotoAssessment] = [:]
+            for row in rows {
+                guard let assetUUID = UUID(uuidString: row["asset_id"] as String),
+                      let idUUID = UUID(uuidString: row["id"] as String),
+                      let quality = BusinessPhotoQuality(rawValue: row["business_quality"] as String),
+                      let role = PhotoRole(rawValue: row["photo_role"] as String),
+                      let hairline = HairlinePresentation(rawValue: row["hairline_presentation"] as String),
+                      let provider = VisualModelProvider(rawValue: row["provider"] as String) else {
+                    continue
+                }
+                let assetID = AssetID(rawValue: assetUUID)
+                let evidence = (try? JSONDecoder().decode(Set<VisualEvidenceCode>.self, from: Data((row["evidence_json"] as String).utf8))) ?? []
+                if let revision = try? VisualModelRevision(
+                    provider: provider,
+                    modelIdentifier: row["model_identifier"],
+                    assessmentSchemaVersion: row["assessment_schema_version"]
+                ), let assessment = try? PhotoAssessment(
+                    id: idUUID,
+                    assetID: assetID,
+                    businessQuality: quality,
+                    evidence: evidence,
+                    photoRole: role,
+                    hairlinePresentation: hairline,
+                    confidence: row["confidence"],
+                    rationale: row["rationale"],
+                    modelRevision: revision,
+                    derivativeSHA256: row["derivative_sha256"],
+                    derivativeMaximumPixelDimension: row["derivative_maximum_pixel_dimension"],
+                    capturedAt: CatalogDate.date(row["captured_at_ms"] as Int64)
+                ) {
+                    map[assetID] = assessment
+                }
+            }
+            return map
+        }
+    }
+
     public func record(_ review: AssessmentReview) async throws {
         let now = CatalogDate.milliseconds(Date())
         try await databasePool.write { db in

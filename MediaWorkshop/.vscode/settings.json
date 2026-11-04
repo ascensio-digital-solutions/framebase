@@ -7,5 +7,26 @@
     "geminicodeassist.project": "ascensio-media-os",
     "cloudcode.autoDependencies": "off",
     "cloudcode.cloudSdkVerbosityLevel": "warning",
-    "antigravity.enableInlineDiff": false
+    "antigravity.enableInlineDiff": false,
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/**": true,
+        "**/.venv/**": true,
+        "**/DerivedData/**": true,
+        "**/.build/**": true,
+        "**/MediaWorkshop/staging/**": true,
+        "**/MediaWorkshop/canva_export/**": true,
+        "**/MediaWorkshop/Cloudinary export/**": true,
+        "**/MediaWorkshop/outputs/**": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/.venv": true,
+        "**/DerivedData": true,
+        "**/.build": true,
+        "**/MediaWorkshop/staging": true,
+        "**/MediaWorkshop/canva_export": true,
+        "**/MediaWorkshop/Cloudinary export": true
+    }
 }

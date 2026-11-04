@@ -27,6 +27,7 @@ export interface Bindings {
   IMAGES?: ImagesBinding;
   AI?: WorkersAiBinding;
   VECTORIZE?: VectorizeIndexBinding;
+  VECTORIZE_INDEX?: VectorizeIndexBinding;
   INGEST_QUEUE?: QueueBinding;
   JWT_SECRET?: string;
   ENROLLMENT_SECRET?: string;
@@ -39,7 +40,9 @@ export interface Bindings {
   GCP_PROJECT_ID?: string;
   AI_GATEWAY_ACCOUNT_ID?: string;
   AI_GATEWAY_NAME?: string;
-  LIBRARY_SPACE?: 'hsc' | 'personal';
+  AI_GATEWAY_ID?: string;
+  CF_ACCOUNT_ID?: string;
+  LIBRARY_SPACE?: 'hsc' | 'personal' | 'knowledge';
 }
 
 export interface Variables {

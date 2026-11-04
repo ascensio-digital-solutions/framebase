@@ -26,6 +26,8 @@
 		A10000000000000000000011 /* LibrarySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* LibrarySetupView.swift */; };
 		A10000000000000000000012 /* FramebaseAPIClient in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000004 /* FramebaseAPIClient */; };
 		A10000000000000000000013 /* FramebaseSync in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000005 /* FramebaseSync */; };
+		A10000000000000000000014 /* LibraryAssistantController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* LibraryAssistantController.swift */; };
+		A10000000000000000000015 /* FramebaseAssistantPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* FramebaseAssistantPanel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +57,8 @@
 		A2000000000000000000000E /* LibraryPackageCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPackageCoordinator.swift; sourceTree = "<group>"; };
 		A2000000000000000000000F /* LibraryPanelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPanelService.swift; sourceTree = "<group>"; };
 		A20000000000000000000010 /* LibrarySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySetupView.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* LibraryAssistantController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryAssistantController.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* FramebaseAssistantPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramebaseAssistantPanel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +104,7 @@
 				A2000000000000000000000E /* LibraryPackageCoordinator.swift */,
 				A2000000000000000000000F /* LibraryPanelService.swift */,
 				A20000000000000000000004 /* LibraryWindowModel.swift */,
+				A20000000000000000000011 /* LibraryAssistantController.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -111,9 +116,18 @@
 				A40000000000000000000005 /* Sidebar */,
 				A40000000000000000000006 /* AssetBrowser */,
 				A40000000000000000000007 /* Inspector */,
+				A4000000000000000000000C /* Assistant */,
 				A40000000000000000000008 /* Settings */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000C /* Assistant */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000012 /* FramebaseAssistantPanel.swift */,
+			);
+			path = Assistant;
 			sourceTree = "<group>";
 		};
 		A40000000000000000000004 /* AppShell */ = {
@@ -305,6 +319,8 @@
 				A1000000000000000000000F /* LibraryPackageCoordinator.swift in Sources */,
 				A10000000000000000000010 /* LibraryPanelService.swift in Sources */,
 				A10000000000000000000011 /* LibrarySetupView.swift in Sources */,
+				A10000000000000000000014 /* LibraryAssistantController.swift in Sources */,
+				A10000000000000000000015 /* FramebaseAssistantPanel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

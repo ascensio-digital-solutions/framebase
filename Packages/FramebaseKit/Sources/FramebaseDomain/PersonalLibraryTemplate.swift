@@ -11,6 +11,15 @@ public enum PersonalLibraryTemplate: LibraryStarterTemplate {
     public static let space = LibrarySpace.personal
     public static let initialCustomTagRawValues: [String] = []
 
+    public static let localOnlyQuarantineFolderNames: Set<String> = [
+        "06_private_quarantine",
+        "sensitive"
+    ]
+
+    public static func isLocalOnlyFolder(named name: String) -> Bool {
+        localOnlyQuarantineFolderNames.contains(name.lowercased())
+    }
+
     public static let folders: [LibraryFolderTemplate] = [
         .initialPath("people"),
         .initialPath("people/family"),

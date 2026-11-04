@@ -31,6 +31,8 @@ struct LibraryRegistry {
 @MainActor
 @Observable
 final class AppContainer {
+    static let googleIntakeStagingPath = "/Users/vincent/Downloads/Google Drive Images Export"
+
     enum LibraryState: Equatable {
         case notConfigured
         case opening
