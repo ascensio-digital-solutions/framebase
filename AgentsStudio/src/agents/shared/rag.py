@@ -15,8 +15,17 @@ from typing import Any
 
 import google.auth
 import google.auth.transport.requests
-from google.adk.tools.retrieval.base_retrieval_tool import BaseRetrievalTool
-from google.adk.tools.retrieval.vertex_ai_rag_retrieval import VertexAiRagRetrieval
+try:
+    from google.adk.tools.retrieval.base_retrieval_tool import BaseRetrievalTool
+    from google.adk.tools.retrieval.vertex_ai_rag_retrieval import VertexAiRagRetrieval
+except ImportError:
+    class BaseRetrievalTool:  # type: ignore[no-redef]
+        pass
+
+    class VertexAiRagRetrieval:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
 HAIR_SYSTEM_RAG_CORPUS = os.environ.get(
     "HAIR_SYSTEM_RAG_CORPUS",
