@@ -64,7 +64,11 @@ struct FramebaseCLITests {
         await #expect(throws: FramebaseCLIError.self) {
             _ = try await FramebaseCLI.execute(arguments: ["search", "--catalog", "/tmp/catalog.sqlite"])
         }
-        #expect(try await FramebaseCLI.execute(arguments: ["--help"]).contains("proposal-first"))
+        let help = try await FramebaseCLI.execute(arguments: ["--help"])
+        #expect(help.contains("proposal-first"))
+        #expect(help.contains("ingest-screenshots"))
+        #expect(help.contains("receive-originals"))
+        #expect(help.contains("framebase-blobs-dev"))
     }
 
     @Test("CLI tag proposal stays dry until its exact opaque approval is applied")
