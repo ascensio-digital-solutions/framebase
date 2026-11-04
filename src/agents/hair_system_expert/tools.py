@@ -12,6 +12,8 @@ from google.adk import Context
 from google import genai
 from google.genai import types as genai_types
 
+from ..shared.references import lookup_manifest_references, select_hair_system_references
+
 
 # ── Domain data tables ────────────────────────────────────────────────────
 
@@ -324,18 +326,40 @@ def generate_hair_system_image(
     )
 
     prompt = build_image_prompt(spec)
+    color_name = COLORS.get(color_code, color_code)
 
-    # ── Call Nano Banana 2 via Gemini API ─────────────────────────────────
+    # ── Load matching R2 swatch/product references by manifest tag ────────
+    ref_parts, ref_meta = select_hair_system_references(
+        color_code=color_code,
+        curl_pattern=curl_pattern,
+        density_percent=density_percent,
+        base_type=base_type,
+        grey_percentage=grey_percentage,
+        hairline_style=hairline_style,
+        max_refs=3,
+    )
+
+    # ── Call Nano Banana 2 via Vertex AI / Gemini API ─────────────────────
     try:
         client = genai.Client()
-        contents = [genai_types.Part.from_text(text=prompt)]
+        contents: list[genai_types.Part] = list(ref_parts)
 
-        # If reference image provided, include it for subject consistency
+        # If reference image URI explicitly provided, include it for subject consistency
         if reference_image_uri:
             contents.insert(0, genai_types.Part.from_uri(
                 file_uri=reference_image_uri,
                 mime_type="image/jpeg",
             ))
+
+        if contents:
+            prompt_with_ref_note = (
+                "Use the attached Hair Solutions Co. swatch and hairline reference images "
+                "to match hair color tone, curl texture, base translucency, and hairline realism.\n\n"
+                + prompt
+            )
+            contents.append(genai_types.Part.from_text(text=prompt_with_ref_note))
+        else:
+            contents.append(genai_types.Part.from_text(text=prompt))
 
         response = client.models.generate_content(
             model="gemini-3.1-flash-image",
@@ -353,11 +377,10 @@ def generate_hair_system_image(
         image_path = None
         for part in response.candidates[0].content.parts:
             if part.inline_data and part.inline_data.mime_type.startswith("image/"):
-                import base64, tempfile, os
+                import os, time
                 ext = part.inline_data.mime_type.split("/")[-1]
                 out_dir = os.path.join(os.path.dirname(__file__), ".adk", "generated")
                 os.makedirs(out_dir, exist_ok=True)
-                import time
                 image_path = os.path.join(out_dir, f"hair_system_{int(time.time())}.{ext}")
                 with open(image_path, "wb") as f:
                     f.write(part.inline_data.data)
@@ -367,9 +390,11 @@ def generate_hair_system_image(
             "status": "generated",
             "image_path": image_path,
             "spec": asdict(spec),
+            "reference_assets": ref_meta,
             "model": "gemini-3.1-flash-image (Nano Banana 2)",
             "message": f"Image generated successfully using {color_name} ({color_code}), "
-                       f"{curl_pattern}, {density_percent}% density, {base_type} base. "
+                       f"{curl_pattern}, {density_percent}% density, {base_type} base "
+                       f"with {len(ref_meta)} R2 reference swatch(es). "
                        f"Saved to {image_path}",
         }
 
@@ -728,3 +753,25 @@ def calculate_density(
         "graduation_note": "Front 0.5cm: graduated 60-65% → 40% at edge. "
                           "Single bleached knots. Baby hairs.",
     }
+
+
+def lookup_reference_swatches(
+    folder: str = "02_specs/swatches",
+    tag_query: str = "",
+    limit: int = 10,
+    tool_context: Optional[Context] = None,
+) -> dict:
+    """Look up reference swatches and product images in the HSC R2 reference manifest.
+
+    Args:
+        folder: Manifest folder prefix (e.g. "02_specs/swatches/hair-color",
+            "02_specs/swatches/curl-pattern", "02_specs/swatches/base-material",
+            "02_specs/swatches/density", "01_products/hair-systems").
+        tag_query: Tag or display name substring to filter by (e.g. "color:1b",
+            "french-lace", "curl:15mm", "hairline:natural").
+        limit: Max rows to return (1-50).
+
+    Returns:
+        Dict with matching manifest entries and R2 keys.
+    """
+    return lookup_manifest_references(folder=folder, tag_query=tag_query, limit=limit)

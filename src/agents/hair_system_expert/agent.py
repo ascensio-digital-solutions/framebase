@@ -21,6 +21,7 @@ from google.adk import Agent
 from google.adk.agents import LlmAgent
 from google.adk.tools import load_memory, preload_memory
 
+from ..shared.rag import create_hair_system_rag_tool
 from .tools import (
     generate_hair_system_image,
     generate_hair_system_video,
@@ -28,6 +29,7 @@ from .tools import (
     recommend_base_type,
     calculate_density,
     get_prompt_spec,
+    lookup_reference_swatches,
 )
 
 # ── Agent definition ──────────────────────────────────────────────────────
@@ -84,6 +86,9 @@ and offer a single portrait of the requested hair system instead.
   or Product Facts.
 
 If you're unsure about a parameter, use the get_prompt_spec tool to validate it.
+For product specifications, stock models (Nano Skin, Thin Skin Pro, Lace Elite, Hybrid Flex),
+lifespans, or Approved Claims compliance checks, call retrieve_hair_system_knowledge to ground
+your answer in the Tier 1 approved knowledge base.
 """
 
 hair_system_expert = LlmAgent(
@@ -97,6 +102,8 @@ hair_system_expert = LlmAgent(
         match_hair_color,
         recommend_base_type,
         calculate_density,
+        lookup_reference_swatches,
+        create_hair_system_rag_tool(),
         preload_memory,
         load_memory,
     ],
