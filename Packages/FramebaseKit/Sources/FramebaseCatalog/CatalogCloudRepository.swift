@@ -18,7 +18,10 @@ public struct CatalogCloudRepository: Sendable {
                 sql: """
                     INSERT INTO migration_manifest
                         (asset_id, storage_key, byte_size, source_modified_at_ms, sha256, captured_at_ms, updated_at_ms)
-                    SELECT id, storage_key, file_size, modified_at_ms, NULL, ?, ? FROM assets WHERE 1
+                    SELECT assets.id, assets.storage_key, assets.file_size, assets.modified_at_ms, NULL, ?, ?
+                    FROM assets
+                    LEFT JOIN folders ON folders.id = assets.parent_folder_id
+                    WHERE LOWER(COALESCE(folders.name, '')) NOT IN ('06_private_quarantine', 'sensitive')
                     ON CONFLICT(asset_id) DO NOTHING
                     """,
                 arguments: [now, now]

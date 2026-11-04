@@ -230,6 +230,9 @@ final class LibraryWindowModel {
             }
 
             try await container.synchronizeCloudImportedAssets(Set(result.importedAssetIDs))
+            if isHSCLibrary {
+                await autoSortImportedAssets(Set(result.importedAssetIDs))
+            }
 
 #if DEBUG
             try await seedSyntheticVisualAssessmentForUITestIfRequested(assetIDs: result.importedAssetIDs)
@@ -248,9 +251,152 @@ final class LibraryWindowModel {
             statusMessage = error.localizedDescription
         }
     }
+    
+    func autoSortImportedAssets(_ importedAssetIDs: Set<AssetID>) async {
+        guard !importedAssetIDs.isEmpty,
+              let repository = container.assetRepository,
+              let folderRepository = container.folderRepository else { return }
+
+        do {
+            let analysisResults = try await container.analyzeLocally(assetIDs: importedAssetIDs, kinds: [.ocr])
+            let assets = try await repository.assets(ids: importedAssetIDs)
+            let sorter = AgentSortingService()
+
+            for asset in assets {
+                let result = analysisResults.first { $0.assetID == asset.id && $0.kind == .ocr }
+                var ocrLines: [OCRLine]? = nil
+                if case .ocr(let lines) = result?.payload {
+                    ocrLines = lines
+                }
+
+                if let sortingResult = sorter.evaluate(asset: asset, ocrLines: ocrLines) {
+                    let topFolderName = try FolderName(sortingResult.topFolder)
+                    var topFolder = folderTreeSnapshot?.folders.first(where: { $0.name == topFolderName && $0.parentFolderID == nil })
+                    if topFolder == nil {
+                        topFolder = try await folderRepository.createFolder(named: topFolderName, in: nil)
+                        try await container.queueCloudFolderMutation(.create(topFolder!))
+                    }
+
+                    let subFolderName = try FolderName(sortingResult.subfolder)
+                    var subFolder = folderTreeSnapshot?.folders.first(where: { $0.name == subFolderName && $0.parentFolderID == topFolder?.id })
+                    if subFolder == nil, let topFolderID = topFolder?.id {
+                        subFolder = try await folderRepository.createFolder(named: subFolderName, in: topFolderID)
+                        try await container.queueCloudFolderMutation(.create(subFolder!))
+                    }
+
+                    if let targetFolderID = subFolder?.id {
+                        try await repository.moveAssets(Set([asset.id]), to: targetFolderID)
+                    }
+                }
+            }
+            try await refreshFolderSnapshot(using: folderRepository)
+        } catch {
+            print("Auto-sort failed: \(error)")
+        }
+    }
 
     func cancelImport() async {
         await container.importCoordinator?.cancelCurrentImport()
+    }
+
+    public func publicCDNURL(for asset: Asset, variant: String? = nil) -> URL? {
+        let prefix = String(asset.sha256.prefix(2))
+        let ext = asset.originalExtension
+        if let variant = variant, !variant.isEmpty {
+            return URL(string: "https://assets.hairsolutions.co/assets/\(asset.id)/variants/\(variant)")
+        }
+        return URL(string: "https://assets.hairsolutions.co/blobs/sha256/\(prefix)/\(asset.sha256).\(ext)")
+    }
+
+    public var isHSCLibrary: Bool {
+        guard let url = container.libraryRootURL else { return false }
+        return url.lastPathComponent.localizedCaseInsensitiveContains("HSC")
+    }
+
+    @discardableResult
+    public func ingestGoogleStagingFolder() async throws -> Int {
+        guard let coordinator = container.importCoordinator else {
+            statusMessage = "Library import coordinator unavailable."
+            return 0
+        }
+        let stagingPath = AppContainer.googleIntakeStagingPath
+        let stagingURL = URL(fileURLWithPath: stagingPath)
+        let fileManager = FileManager.default
+
+        if !fileManager.fileExists(atPath: stagingURL.path) {
+            try fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+        }
+
+        let inboxID = folderTreeSnapshot?.inboxID ?? container.catalogDatabase?.inboxID
+        guard let destinationFolderID = inboxID else {
+            statusMessage = "00_inbox folder could not be resolved."
+            return 0
+        }
+
+        let allowedExtensions: Set<String> = ["jpg", "jpeg", "png", "webp", "heic"]
+        let entries = (try? fileManager.contentsOfDirectory(at: stagingURL, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        let imageFiles = entries.filter { fileURL in
+            allowedExtensions.contains(fileURL.pathExtension.lowercased())
+        }
+
+        if imageFiles.isEmpty {
+            statusMessage = "Google Intake: No new images in ~/Downloads/Google_Intake"
+            return 0
+        }
+
+        let processedURL = stagingURL.appendingPathComponent("_processed", isDirectory: true)
+        if !fileManager.fileExists(atPath: processedURL.path) {
+            try fileManager.createDirectory(at: processedURL, withIntermediateDirectories: true)
+        }
+
+        var totalIngested = 0
+
+        for fileURL in imageFiles {
+            let filename = fileURL.lastPathComponent
+            let lowerFilename = filename.lowercased()
+            let sourceTag = (lowerFilename.hasPrefix("nano") || lowerFilename.hasPrefix("imagen")) ? "source:ai" : "source:google-photos"
+
+            do {
+                let result = try await coordinator.importAssets(
+                    ImportRequest(sourceURLs: [fileURL], destinationFolderID: destinationFolderID)
+                ) { _ in }
+
+                if !result.importedAssetIDs.isEmpty {
+                    try await container.synchronizeCloudImportedAssets(Set(result.importedAssetIDs))
+                    totalIngested += result.importedAssetIDs.count
+
+                    if let repository = container.tagRepository {
+                        let assetIDSet = Set(result.importedAssetIDs)
+                        let availableTags = (try? await repository.tags()) ?? tags
+                        for tagStr in [sourceTag, "status:review"] {
+                            if let name = try? TagName(tagStr) {
+                                let tag: Tag
+                                if let existingTag = availableTags.first(where: { $0.name == name }) {
+                                    tag = existingTag
+                                } else {
+                                    tag = try await repository.createTag(named: name)
+                                    try? await container.queueCloudTagMutation(.create(tag))
+                                }
+                                try? await repository.addTags([tag.id], to: assetIDSet)
+                                try? await container.queueCloudTagMutation(.add(tag, assetIDs: assetIDSet))
+                            }
+                        }
+                    }
+
+                    let destURL = processedURL.appendingPathComponent(filename)
+                    if fileManager.fileExists(atPath: destURL.path) {
+                        try? fileManager.removeItem(at: destURL)
+                    }
+                    try fileManager.moveItem(at: fileURL, to: destURL)
+                }
+            } catch {
+                // Keep importing remaining files
+            }
+        }
+
+        statusMessage = "Google Intake: Ingested \(totalIngested) asset(s) into 00_inbox."
+        try? await refreshVisibleAssetIDs()
+        return totalIngested
     }
 
 #if DEBUG

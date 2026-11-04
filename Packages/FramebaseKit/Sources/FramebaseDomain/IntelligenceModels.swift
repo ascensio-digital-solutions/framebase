@@ -254,3 +254,17 @@ public struct AssetAnalysisResult: Codable, Hashable, Sendable, CustomStringConv
         "AssetAnalysisResult(kind: \(kind.rawValue), status: \(status.rawValue), engine: \(provenance.engine), revision: \(provenance.requestRevision), derivativeSHA256: <redacted>)"
     }
 }
+
+public struct AgentSortingResult: Codable, Hashable, Sendable {
+    public let topFolder: String
+    public let subfolder: String
+    public let confidence: Int
+    public let reason: String
+    
+    public init(topFolder: String, subfolder: String, confidence: Int, reason: String) {
+        self.topFolder = topFolder
+        self.subfolder = subfolder
+        self.confidence = confidence
+        self.reason = reason
+    }
+}

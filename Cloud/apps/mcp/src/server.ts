@@ -46,5 +46,40 @@ export function createFramebaseMcpServer(api: FramebaseAgentAPI): McpServer {
     },
     ({ operationId, approvalToken }) => guarded(() => api.applyTagProposal(operationId, approvalToken))
   );
+  server.registerTool(
+    'get_approved_asset',
+    {
+      description: 'Query approved visual assets from Framebase CDN for marketing and e-commerce campaigns.',
+      inputSchema: z.object({
+        tag: z.string().optional().describe('Filter by tag, e.g. "product:thin-skin-pro"'),
+        folder: z.string().optional().describe('Filter by folder, e.g. "01_products/hair-systems"'),
+        variant: z.string().optional().describe('Derivative variant, e.g. "email-hero"'),
+        limit: z.number().int().positive().max(100).default(5).describe('Maximum assets to return')
+      })
+    },
+    ({ tag, folder, variant, limit }) => guarded(() => api.getApprovedAssets({ tag, folder, variant, limit }))
+  );
+  server.registerTool(
+    'framebase_semantic_search',
+    {
+      description: 'Perform semantic search across Framebase visual assets.',
+      inputSchema: z.object({
+        query: z.string().min(1),
+        limit: z.number().int().positive().max(50).default(10)
+      })
+    },
+    ({ query, limit }) => guarded(() => api.semanticSearch(query, limit))
+  );
+  server.registerTool(
+    'framebase_analyze_asset',
+    {
+      description: 'Analyze visual asset intelligence in Framebase.',
+      inputSchema: z.object({
+        assetId: z.string().min(1),
+        librarySpace: z.enum(['hsc', 'personal']).default('hsc')
+      })
+    },
+    ({ assetId, librarySpace }) => guarded(() => api.analyzeAsset(assetId, librarySpace))
+  );
   return server;
 }

@@ -5,7 +5,31 @@
   "compatibility_date": "2025-02-04",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "OBSERVABILITY_SAMPLE_RATE": "0.1"
+    "OBSERVABILITY_SAMPLE_RATE": "0.1",
+    "LIBRARY_SPACE": "hsc",
+    "GCP_PROJECT_ID": "ascensio-media-os",
+    "AI_GATEWAY_ACCOUNT_ID": "938d6ab84fe239647496cc1540ffa21f",
+    "AI_GATEWAY_NAME": "framebase-vision-dev"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "fb-assets"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "INGEST_QUEUE",
+        "queue": "fb-ingest"
+      }
+    ]
   },
   "d1_databases": [
     {
@@ -20,5 +44,91 @@
       "binding": "BLOBS",
       "bucket_name": "framebase-blobs-dev"
     }
-  ]
+  ],
+  "env": {
+    "production": {
+      "name": "framebase-api-prod",
+      "vars": {
+        "OBSERVABILITY_SAMPLE_RATE": "0.1",
+        "LIBRARY_SPACE": "hsc",
+        "GCP_PROJECT_ID": "ascensio-media-os",
+        "AI_GATEWAY_ACCOUNT_ID": "938d6ab84fe239647496cc1540ffa21f",
+        "AI_GATEWAY_NAME": "framebase-vision-dev"
+      },
+      "images": {
+        "binding": "IMAGES"
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "fb-assets"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "INGEST_QUEUE",
+            "queue": "fb-ingest"
+          }
+        ]
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "framebase-catalog-prod",
+          "database_id": "07f023bc-fce0-4790-bd8d-d89e45e5b2fc",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BLOBS",
+          "bucket_name": "framebase-blobs-prod"
+        },
+        {
+          "binding": "LEGACY_ORIGIN",
+          "bucket_name": "hsc-media-origin"
+        }
+      ]
+    },
+    "personal": {
+      "name": "framebase-personal-api-prod",
+      "vars": {
+        "OBSERVABILITY_SAMPLE_RATE": "0.1",
+        "LIBRARY_SPACE": "personal",
+        "GCP_PROJECT_ID": "ascensio-media-os",
+        "AI_GATEWAY_ACCOUNT_ID": "938d6ab84fe239647496cc1540ffa21f",
+        "AI_GATEWAY_NAME": "framebase-vision-dev"
+      },
+      "images": {
+        "binding": "IMAGES"
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "fb-assets"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "framebase-catalog-personal-prod",
+          "database_id": "e229790b-37b9-4296-bff8-311814a3dbc5",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BLOBS",
+          "bucket_name": "framebase-blobs-personal-prod"
+        }
+      ]
+    }
+  }
 }

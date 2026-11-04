@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public enum MediaType: String, Codable, Sendable {
     case stillImage
@@ -317,5 +318,24 @@ public struct DuplicateCandidate: Identifiable, Hashable, Sendable {
     public init(sha256: String, assetIDs: [AssetID]) {
         self.sha256 = sha256
         self.assetIDs = assetIDs
+    }
+}
+
+extension Asset {
+    public var originalExtension: String {
+        if let ext = metadata.file.filenameExtension, !ext.isEmpty {
+            return ext
+        }
+        let ext = (filename as NSString).pathExtension
+        return ext.isEmpty ? "jpg" : ext
+    }
+
+    public var sha256: String {
+        if let localURL = localURL, let data = try? Data(contentsOf: localURL) {
+            return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        }
+        let base = id.description.replacingOccurrences(of: "-", with: "").lowercased()
+        let hashed = SHA256.hash(data: Data(base.utf8))
+        return hashed.map { String(format: "%02x", $0) }.joined()
     }
 }

@@ -94,7 +94,7 @@ public enum HairSolutionsLibraryTemplate {
     /// duplicate the primary folder placement with a tag.
     public static let tagNamespaces: [LibraryTagNamespaceTemplate] = [
         .init(namespace: "status", allowedValues: ["review", "retouch", "approved", "archived"], allowsCustomValues: false, allowsMultipleValuesPerAsset: false),
-        .init(namespace: "source", allowedValues: ["ai", "vendor", "studio", "customer", "stock", "partner"], allowsCustomValues: false, allowsMultipleValuesPerAsset: false),
+        .init(namespace: "source", allowedValues: ["ai", "google-photos", "vendor", "studio", "customer", "stock", "partner"], allowsCustomValues: false, allowsMultipleValuesPerAsset: false),
         .init(namespace: "product", allowsCustomValues: true, allowsMultipleValuesPerAsset: true),
         .init(namespace: "article", allowsCustomValues: true, allowsMultipleValuesPerAsset: true),
         .init(namespace: "campaign", allowsCustomValues: true, allowsMultipleValuesPerAsset: true),

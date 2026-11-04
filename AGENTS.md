@@ -4,7 +4,7 @@ Read `PROJECT.md` first, then this file, then `docs/MASTER_ROADMAP.md`, then the
 
 ## Repository location
 
-`/Users/vMac/01_projects/products/framebase` is the sole canonical local checkout. Do not create a persistent sibling clone or worktree without Vincent's current approval.
+`/Users/vincent/02_ascensio_digital_solutions/products/framebase` is the sole canonical local checkout. Do not create a persistent sibling clone or worktree without Vincent's current approval.
 
 ## Authority
 
@@ -34,8 +34,14 @@ Use `./script/build_and_run.sh` as the only app build/run entrypoint once availa
 The app target requires full Xcode 26. Do not claim the Xcode build or launch gate passed when only Command Line Tools are selected.
 
 ## Cloudflare
-The repository contains a development-only Cloudflare Worker, D1 catalog, and private R2 bucket; these are not production or personal-library infrastructure. Before any Cloudflare inventory or implementation, read and follow `/Users/vMac/.codex/skills/hair-solutions-cloudflare-ops/SKILL.md`; keep resource creation, deployment, DNS, Access, credential, and production changes approval-gated. Never treat a roadmap or phase plan as deployment approval.
+The repository contains a development-only Cloudflare Worker, D1 catalog, and private R2 bucket; these are not production or personal-library infrastructure. Before any Cloudflare inventory or implementation, read and follow `/Users/vincent/.codex/skills/hair-solutions-cloudflare-ops/SKILL.md`; keep resource creation, deployment, DNS, Access, credential, and production changes approval-gated. Never treat a roadmap or phase plan as deployment approval.
 
 ## Session handoff
 
 Update `PROJECT.md` at the end of every implementation session with the current state, verification performed, blockers, next step, and agent name. Only change this file when a durable rule or path changes.
+
+## HQ mailbox
+
+You are `ascensio.framebase` (also written in `.hq-department`). Sub-agents: none.
+
+Follow the **HQ mailbox routine in `~/AGENTS.md`**: check your inbox at the start of every session, handle or decline what is waiting, and leave decision-ready messages for other departments when you notice work that belongs to them. Pass `ascensio.framebase` as your department.

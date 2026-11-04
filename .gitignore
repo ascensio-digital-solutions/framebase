@@ -11,6 +11,33 @@ xcuserdata/
 node_modules/
 .wrangler/
 .dev.vars
+*.profraw
 
 # Agent worktrees live inside .claude/ and carry their own build output.
 .claude/worktrees/
+
+# Python & AI Agent environments (AgentsStudio & MediaWorkshop)
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.adk/
+.taskplane/
+agents-studio-key.json
+
+# MediaWorkshop local state, caches, galleries, and large staging exports
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+MediaWorkshop/staging/
+MediaWorkshop/outputs/
+MediaWorkshop/state/
+MediaWorkshop/classifier/.thumb_cache/
+MediaWorkshop/classifier/*gallery*.html
+MediaWorkshop/classifier/gemini_qwen_comparison.html
+MediaWorkshop/classifier/model_comparison_report.html
+MediaWorkshop/classifier/*.log
+MediaWorkshop/scripts/*_cache.json
+

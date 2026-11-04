@@ -1,5 +1,6 @@
 import AppKit
 import FramebaseDomain
+import FramebaseMedia
 import SwiftUI
 
 struct FoundationInspector: View {
@@ -9,6 +10,7 @@ struct FoundationInspector: View {
     @State private var correctedBusinessQuality = BusinessPhotoQuality.needsReview
     @State private var correctedPhotoRole = PhotoRole.unclear
     @State private var correctedHairlinePresentation = HairlinePresentation.unclear
+    @State private var selectedCDNVariant = ""
 
     var body: some View {
         Group {
@@ -42,7 +44,9 @@ struct FoundationInspector: View {
                 multiAssetInspector(model.selectedAssets)
             }
         }
+        .scrollContentBackground(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: NSColor(srgbRed: 0.10, green: 0.10, blue: 0.115, alpha: 1.0)))
         .accessibilityIdentifier("inspector.content")
     }
 
@@ -74,9 +78,15 @@ struct FoundationInspector: View {
                 }
             }
 
+            if model.isHSCLibrary {
+                productionCDNSection(asset)
+            }
+
             assetLocation(asset)
 
             localAnalysis
+            
+            agentSortingAnalysis
 
             visualAssessmentReview
 
@@ -354,6 +364,34 @@ struct FoundationInspector: View {
             }
         }
     }
+    
+    @ViewBuilder
+    private var agentSortingAnalysis: some View {
+        if model.selectedAssets.count == 1, let asset = model.selectedAssets.first {
+            Section("Agent Sorting Suggestion") {
+                let ocrResult = model.selectedAnalysisResults.first { $0.kind == .ocr }
+                let ocrLines: [OCRLine]? = {
+                    if case .ocr(let lines) = ocrResult?.payload {
+                        return lines
+                    }
+                    return nil
+                }()
+                
+                if let suggestion = AgentSortingService().evaluate(asset: asset, ocrLines: ocrLines) {
+                    LabeledContent("Top Folder", value: suggestion.topFolder)
+                    LabeledContent("Subfolder", value: suggestion.subfolder)
+                    LabeledContent("Confidence", value: "\(suggestion.confidence)%")
+                    LabeledContent("Reason", value: suggestion.reason)
+                    Button("Apply Agent Organization") {
+                        Task { await model.autoSortImportedAssets(Set([asset.id])) }
+                    }
+                } else {
+                    Text("No AI sorting suggestion available.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
 
     private var visualAssessmentReview: some View {
         Section("Visual assessment review") {
@@ -563,6 +601,50 @@ struct FoundationInspector: View {
                 Task { await model.setRating(rating) }
             }
         )
+    }
+
+    private func productionCDNSection(_ asset: Asset) -> some View {
+        Section("Production CDN") {
+            Picker("Variant", selection: $selectedCDNVariant) {
+                Text("Original").tag("")
+                Text("email-hero").tag("email-hero")
+                Text("email-module").tag("email-module")
+                Text("shopify-product").tag("shopify-product")
+                Text("social-square").tag("social-square")
+            }
+            .pickerStyle(.menu)
+
+            let cdnURL = model.publicCDNURL(for: asset, variant: selectedCDNVariant.isEmpty ? nil : selectedCDNVariant)
+            let urlString = cdnURL?.absoluteString ?? ""
+
+            TextField("CDN URL", text: .constant(urlString))
+                .font(.system(.caption, design: .monospaced))
+                .lineLimit(1)
+
+            HStack(spacing: 8) {
+                Button("Copy Link") {
+                    copyToClipboard(urlString)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Copy HTML Tag") {
+                    let tag = "<img src=\"\(urlString)\" alt=\"\(asset.displayName)\" loading=\"lazy\" />"
+                    copyToClipboard(tag)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Copy Liquid Snippet") {
+                    let liquid = "{{ '\(urlString)' | image_tag: loading: 'lazy' }}"
+                    copyToClipboard(liquid)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private func copyToClipboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private func dimensions(_ asset: Asset) -> String {

@@ -53,6 +53,8 @@ struct FoundationAssetBrowser: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: NSColor(srgbRed: 0.08, green: 0.08, blue: 0.09, alpha: 1.0)))
         .navigationTitle(model.navigationTitle)
     }
 
@@ -447,13 +449,15 @@ private final class AssetCollectionViewController: NSViewController {
             AssetCollectionItem.self,
             forItemWithIdentifier: .assetCollectionItem
         )
+        let studioCanvasColor = NSColor(srgbRed: 0.08, green: 0.08, blue: 0.09, alpha: 1.0)
         collectionView.isSelectable = true
         collectionView.allowsMultipleSelection = true
-        collectionView.backgroundColors = [.clear]
+        collectionView.backgroundColors = [studioCanvasColor]
         collectionView.focusRingType = .exterior
 
         let scrollView = NSScrollView()
-        scrollView.drawsBackground = false
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = studioCanvasColor
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true

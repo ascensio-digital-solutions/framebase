@@ -8,6 +8,7 @@ import { mutationsRouter } from './routes/mutations.js';
 import { catalogRouter } from './routes/catalog.js';
 import { derivativesRouter } from './routes/derivatives.js';
 import { agentsRouter } from './routes/agents.js';
+import { intelligenceRouter } from './routes/intelligence.js';
 
 const app = new Hono<AppEnv>();
 
@@ -31,6 +32,7 @@ app.route('/v1', mutationsRouter);
 app.route('/v1', catalogRouter);
 app.route('/v1', derivativesRouter);
 app.route('/v1', agentsRouter);
+app.route('/v1', intelligenceRouter);
 
 // Root fallback
 app.get('/', (c) => c.json({ name: 'Framebase API Dev', version: '0.2.0', docs: '/v1/health' }));

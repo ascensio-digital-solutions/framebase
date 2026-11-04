@@ -39,4 +39,65 @@ describe('Framebase MCP HTTP adapter', () => {
     ));
     await expect(api.proposeTag('tag-1', ['asset-1'], 7)).rejects.toMatchObject({ code: 'STALE_REVISION', status: 409 });
   });
+
+  it('queries approved assets and formats CDN and variant URLs correctly', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({
+        entities: [
+          { entityType: 'tag', entityId: 'tag-1', payload: { name: 'product:thin-skin-pro' } },
+          { entityType: 'asset_tag', entityId: 'at-1', payload: { asset_id: 'asset-123', tag_id: 'tag-1' } },
+          { entityType: 'asset', entityId: 'asset-123', payload: { display_name: 'Thin Skin Pro Frontal', filename: 'tsp.png' } }
+        ]
+      }), { status: 200 })
+    );
+    const api = new FramebaseAgentAPI('https://framebase-api-dev.example.test', credential, fetcher);
+    const results = await api.getApprovedAssets({ tag: 'product:thin-skin-pro', variant: 'email-hero', limit: 5 });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({
+      id: 'asset-123',
+      displayName: 'Thin Skin Pro Frontal',
+      publicCdnUrl: 'https://assets.hairsolutions.co/assets/asset-123',
+      variantUrl: 'https://assets.hairsolutions.co/assets/asset-123/variants/email-hero',
+      tags: ['product:thin-skin-pro']
+    });
+  });
+
+  it('performs semantic search and formats CDN URLs correctly', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({
+        matches: [
+          { id: 'asset-456', score: 0.92, displayName: 'Lace Frontal', metadata: { type: 'frontal' } }
+        ]
+      }), { status: 200 })
+    );
+    const api = new FramebaseAgentAPI('https://framebase-api-dev.example.test', credential, fetcher);
+    const results = await api.semanticSearch('lace frontal', 10);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({
+      id: 'asset-456',
+      score: 0.92,
+      displayName: 'Lace Frontal',
+      publicCdnUrl: 'https://assets.hairsolutions.co/assets/asset-456',
+      metadata: { type: 'frontal' }
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const [searchURL, searchInit] = fetcher.mock.calls[0];
+    expect(String(searchURL)).toBe('https://framebase-api-dev.example.test/v1/search/semantic');
+    expect(searchInit?.method).toBe('POST');
+    expect(searchInit?.body).toBe(JSON.stringify({ query: 'lace frontal', limit: 10 }));
+  });
+
+  it('analyzes assets with library space parameter', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ analysis: { quality: 'excellent' } }), { status: 200 })
+    );
+    const api = new FramebaseAgentAPI('https://framebase-api-dev.example.test', credential, fetcher);
+    const response = await api.analyzeAsset('asset-456', 'personal');
+    expect(response).toEqual({ analysis: { quality: 'excellent' } });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const [analyzeURL, analyzeInit] = fetcher.mock.calls[0];
+    expect(String(analyzeURL)).toBe('https://framebase-api-dev.example.test/v1/intelligence/analyze/asset-456');
+    expect(analyzeInit?.method).toBe('POST');
+    expect(analyzeInit?.body).toBe(JSON.stringify({ librarySpace: 'personal' }));
+  });
 });

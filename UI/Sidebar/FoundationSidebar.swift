@@ -80,10 +80,12 @@ struct FoundationSidebar: NSViewRepresentable {
         let column = NSTableColumn(identifier: .sidebarColumn)
         column.resizingMask = .autoresizingMask
 
+        let studioSidebarColor = NSColor(srgbRed: 0.10, green: 0.10, blue: 0.115, alpha: 1.0)
         outlineView.addTableColumn(column)
         outlineView.outlineTableColumn = column
         outlineView.headerView = nil
-        outlineView.style = .sourceList
+        outlineView.style = .fullWidth
+        outlineView.backgroundColor = studioSidebarColor
         outlineView.rowSizeStyle = .default
         outlineView.allowsEmptySelection = false
         outlineView.allowsMultipleSelection = false
@@ -108,7 +110,8 @@ struct FoundationSidebar: NSViewRepresentable {
         }
 
         let scrollView = NSScrollView()
-        scrollView.drawsBackground = false
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = studioSidebarColor
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true

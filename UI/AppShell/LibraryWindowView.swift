@@ -56,9 +56,11 @@ struct LibraryWindowView: View {
                     }
                 }
             )
+                .background(Color(nsColor: NSColor(srgbRed: 0.10, green: 0.10, blue: 0.115, alpha: 1.0)))
                 .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
         } detail: {
             FoundationAssetBrowser(model: model)
+                .background(NeutralStudioWindowConfigurator())
                 .searchable(text: searchTextBinding, placement: .toolbar, prompt: "Search names, camera, folders, tags…")
                 .dropDestination(for: URL.self) { urls, _ in
                     guard model.container.canBrowseLibrary, !urls.isEmpty else { return false }
@@ -98,6 +100,11 @@ struct LibraryWindowView: View {
                             Task { await model.container.createLibrary(for: .personal) }
                         }
                     }
+                    if !model.container.knownLibraries.contains(where: { $0.space == .knowledge }) {
+                        Button("Create Knowledge Library") {
+                            Task { await model.container.createLibrary(for: .knowledge) }
+                        }
+                    }
                 } label: {
                     Label(model.container.activeLibrary?.displayName ?? "Libraries", systemImage: "rectangle.3.group")
                 }
@@ -109,6 +116,16 @@ struct LibraryWindowView: View {
                     Label("Import", systemImage: "square.and.arrow.down")
                 }
                 .disabled(!model.container.canBrowseLibrary)
+
+                Button {
+                    Task {
+                        _ = try? await model.ingestGoogleStagingFolder()
+                    }
+                } label: {
+                    Label("Ingest from Google Intake", systemImage: "photo.badge.plus")
+                }
+                .disabled(!model.container.canBrowseLibrary)
+                .help("Ingest from Google Intake (~/Downloads/Google_Intake)")
 
                 Menu {
                     ForEach(AssetSort.Key.allCases, id: \.self) { key in
@@ -756,5 +773,60 @@ private struct SavedSearchSheet: View {
     private func saveSearch() {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         save(name)
+    }
+}
+
+/// Disables macOS behind-window wallpaper tinting across the entire NSWindow hierarchy
+/// (titlebar, toolbar, sidebar, canvas, and inspector) so Framebase always renders in
+/// color-accurate neutral studio graphite regardless of the user's desktop wallpaper.
+private struct NeutralStudioWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = StudioWindowProbeView()
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? StudioWindowProbeView)?.applyNeutralStudioTheme()
+    }
+}
+
+private final class StudioWindowProbeView: NSView {
+    private static let windowChromeColor = NSColor(srgbRed: 0.10, green: 0.10, blue: 0.115, alpha: 1.0)
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        applyNeutralStudioTheme()
+        DispatchQueue.main.async { [weak self] in
+            self?.applyNeutralStudioTheme()
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        applyNeutralStudioTheme()
+    }
+
+    func applyNeutralStudioTheme() {
+        guard let window else { return }
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.backgroundColor = Self.windowChromeColor
+        window.isOpaque = true
+        if let rootView = window.contentView?.superview {
+            neutralizeVisualEffectViews(in: rootView)
+        }
+    }
+
+    private func neutralizeVisualEffectViews(in view: NSView) {
+        if let effectView = view as? NSVisualEffectView {
+            if effectView.blendingMode == .behindWindow {
+                effectView.blendingMode = .withinWindow
+            }
+            effectView.material = .windowBackground
+            effectView.wantsLayer = true
+            effectView.layer?.backgroundColor = Self.windowChromeColor.cgColor
+        }
+        for subview in view.subviews {
+            neutralizeVisualEffectViews(in: subview)
+        }
     }
 }

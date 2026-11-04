@@ -49,6 +49,8 @@ public enum HairlinePresentation: String, Codable, CaseIterable, Hashable, Senda
 public enum VisualModelProvider: String, Codable, CaseIterable, Hashable, Sendable {
     case anthropic
     case local
+    case google
+    case vertex
 }
 
 public struct VisualModelRevision: Codable, Hashable, Sendable {

@@ -192,8 +192,13 @@ public actor FramebaseSync {
     /// all other logical folder, asset, and album IDs stay byte-for-byte identical.
     public func publishInitialCatalog() async throws {
         let snapshot = try await catalog.folders.treeSnapshot()
+        let quarantinedFolderIDs = Set(
+            snapshot.folders
+                .filter { PersonalLibraryTemplate.isLocalOnlyFolder(named: $0.name.rawValue) }
+                .map(\.id)
+        )
         var queuedFolderIDs = Set<FolderID>()
-        var remaining = snapshot.folders.filter { $0.systemKind == nil }
+        var remaining = snapshot.folders.filter { $0.systemKind == nil && !quarantinedFolderIDs.contains($0.id) }
         while !remaining.isEmpty {
             let ready = remaining.filter { folder in
                 folder.parentFolderID == nil || queuedFolderIDs.contains(folder.parentFolderID!)
@@ -219,8 +224,13 @@ public actor FramebaseSync {
 
         let assetIDs = try await catalog.assets.orderedIDs(matching: AssetQuery(scope: .allAssets), sortedBy: .defaultSort)
         for assetID in assetIDs {
-            guard let asset = try await catalog.assets.asset(id: assetID),
-                  let cloudState = try await catalog.cloud.cloudState(for: assetID),
+            guard let asset = try await catalog.assets.asset(id: assetID) else {
+                throw FramebaseSyncError.remoteVerificationFailed(assetID.description)
+            }
+            if quarantinedFolderIDs.contains(asset.parentFolderID) {
+                continue
+            }
+            guard let cloudState = try await catalog.cloud.cloudState(for: assetID),
                   let blob = try await catalog.cloud.blob(sha256: cloudState.blobSHA256),
                   blob.verificationState == .verified else {
                 throw FramebaseSyncError.remoteVerificationFailed(assetID.description)
@@ -770,7 +780,16 @@ public actor FramebaseSync {
         _ = try await hashPendingOriginals()
         try await uploadVerifiedLocalBlobs()
         let snapshot = try await catalog.folders.treeSnapshot()
+        let quarantinedFolderIDs = Set(
+            snapshot.folders
+                .filter { PersonalLibraryTemplate.isLocalOnlyFolder(named: $0.name.rawValue) }
+                .map(\.id)
+        )
         for assetID in assetIDs.sorted(by: { $0.description < $1.description }) {
+            if let asset = try await catalog.assets.asset(id: assetID),
+               quarantinedFolderIDs.contains(asset.parentFolderID) {
+                continue
+            }
             try await enqueueAssetCreation(assetID, inboxID: snapshot.inboxID, idempotencyPrefix: "import-asset")
         }
         try await sendQueuedChanges()

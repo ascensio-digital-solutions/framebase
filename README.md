@@ -42,3 +42,9 @@ npx wrangler deploy --dry-run --outdir /tmp/framebase-wrangler-dry-run
 ```
 
 Native app builds require full Xcode 26. Cloudflare resource creation, deployment, DNS, credentials, and production changes remain approval-gated.
+
+## Builder mapping (2026-10-21)
+- Builder agent: Framebase Builder
+- Notion hub: https://app.notion.com/p/3e390dfff417810f909cfd860a63631d
+- Repo: https://github.com/vincent-laroche/framebase
+- Brief: /workspace/products/framebase-cloud-brief.md

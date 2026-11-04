@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hsc-media-bridge",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "AUDIT_DB",
+      "database_name": "hsc-media-bridge-audit",
+      "database_id": "3238e831-6a6a-4ea7-b16b-081a91efcca6"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "TEMP_EXPORTS",
+      "bucket_name": "hsc-temporary-exports"
+    }
+  ]
+}

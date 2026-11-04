@@ -9,11 +9,13 @@ import Observation
 enum LibrarySpace: String, Codable, CaseIterable, Hashable, Sendable {
     case personal
     case hairSolutions
+    case knowledge
 
     var displayName: String {
         switch self {
         case .personal: "Personal Library"
         case .hairSolutions: "HSC Library"
+        case .knowledge: "Knowledge Library"
         }
     }
 
@@ -22,7 +24,17 @@ enum LibrarySpace: String, Codable, CaseIterable, Hashable, Sendable {
     }
 
     static func inferred(from rootURL: URL) -> LibrarySpace? {
-        allCases.first { $0.packageName == rootURL.lastPathComponent }
+        let name = rootURL.lastPathComponent.lowercased()
+        if name.contains("hsc") || name.contains("hair") {
+            return .hairSolutions
+        }
+        if name.contains("knowledge") || name.contains("swipe") {
+            return .knowledge
+        }
+        if name.contains("personal") || name.contains("framebase") {
+            return .personal
+        }
+        return allCases.first { $0.packageName.lowercased() == name }
     }
 }
 
@@ -54,7 +66,12 @@ struct LibraryRegistry {
               let libraries = try? JSONDecoder().decode([LibraryDescriptor].self, from: data) else {
             return []
         }
-        return libraries.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        // Deduplicate by catalogID and rootPath
+        var uniqueMap: [String: LibraryDescriptor] = [:]
+        for lib in libraries {
+            uniqueMap[lib.rootPath] = lib
+        }
+        return Array(uniqueMap.values).sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 
     func save(_ libraries: [LibraryDescriptor]) {
@@ -70,10 +87,10 @@ struct LibraryRegistry {
         let path = rootURL.standardizedFileURL.path
         var libraries = load()
         let existing = libraries.first { $0.rootPath == path || $0.catalogID == catalogID }
-        let space = preferredSpace ?? existing?.space ?? .personal
+        let space = preferredSpace ?? LibrarySpace.inferred(from: rootURL) ?? existing?.space ?? .personal
         let descriptor = LibraryDescriptor(
             catalogID: catalogID,
-            displayName: preferredSpace?.displayName ?? existing?.displayName ?? LibrarySpace.personal.displayName,
+            displayName: preferredSpace?.displayName ?? space.displayName,
             space: space,
             rootURL: rootURL
         )
@@ -122,6 +139,7 @@ final class AppContainer {
     let thumbnailCacheFormatVersion = FramebaseMediaFoundation.thumbnailCacheFormatVersion
 
     private static let libraryRootPreferenceKey = "framebase.libraryRootPath"
+    public static let googleIntakeStagingPath: String = NSString(string: "~/Downloads/Google_Intake").expandingTildeInPath
 
     init(preferences: UserDefaults = .standard) {
         self.preferences = preferences
@@ -175,11 +193,35 @@ final class AppContainer {
         }
 #endif
 
-        guard let persistedPath = preferences.string(forKey: Self.libraryRootPreferenceKey) else {
+        await discoverStandardLibrariesInPictures()
+
+        if let persistedPath = preferences.string(forKey: Self.libraryRootPreferenceKey),
+           FileManager.default.fileExists(atPath: persistedPath) {
+            await openLibrary(at: URL(fileURLWithPath: persistedPath, isDirectory: true))
             return
         }
 
-        await openLibrary(at: URL(fileURLWithPath: persistedPath, isDirectory: true))
+        if let defaultLibrary = knownLibraries.first(where: { $0.space == .hairSolutions }) ?? knownLibraries.first {
+            await openLibrary(at: defaultLibrary.rootURL)
+        }
+    }
+
+    private func discoverStandardLibrariesInPictures() async {
+        let registry = LibraryRegistry(preferences: preferences)
+        for space in [LibrarySpace.hairSolutions, LibrarySpace.personal, LibrarySpace.knowledge] {
+            guard let rootURL = try? LibraryPackageLayout.rootURL(for: space),
+                  FileManager.default.fileExists(atPath: rootURL.path),
+                  let layout = try? await libraryCoordinator.openLibrary(at: rootURL),
+                  FileManager.default.fileExists(atPath: layout.catalogDatabaseURL.path),
+                  let catalog = try? CatalogDatabase(catalogURL: layout.catalogDatabaseURL) else {
+                continue
+            }
+            knownLibraries = registry.upserting(
+                catalogID: catalog.catalogID,
+                rootURL: layout.rootURL,
+                preferredSpace: space
+            )
+        }
     }
 
     func createDefaultLibrary() async {

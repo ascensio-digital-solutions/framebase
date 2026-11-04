@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hsc-media-delivery",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_ORIGIN",
+      "bucket_name": "hsc-media-origin"
+    },
+    {
+      "binding": "BLOBS",
+      "bucket_name": "framebase-blobs-prod"
+    }
+  ]
+}
