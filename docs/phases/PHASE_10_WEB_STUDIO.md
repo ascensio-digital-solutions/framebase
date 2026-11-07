@@ -19,7 +19,9 @@ Source of the product and architecture decisions: `Framebase 2.0 — Azure AI Vi
 ## Repository layout
 
 ```text
-.devcontainer/         Codespaces dev container (Node 22, Python 3.12, Azure CLI + Bicep, gh, Docker, PostgreSQL sidecar)
+.devcontainer/         Codespaces dev container (Node 22, Python 3.12, Azure CLI + Bicep, azd + Foundry extensions, gh, Docker, PostgreSQL sidecar)
+.mcp.json              Project MCP servers for Claude Code: Azure MCP, Foundry MCP (remote), Microsoft Learn
+.vscode/mcp.json       The same MCP servers for VS Code / Copilot
 Web/
   app/                 React + Vite workspace shell
   server/              Hono API, serves the built app in the container image

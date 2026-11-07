@@ -20,6 +20,9 @@ else
   echo "    Skipped heavy Python deps. Re-run with FRAMEBASE_INSTALL_PYTHON=1 to install them."
 fi
 
+echo "==> Azure / Foundry tooling"
+bash .devcontainer/install-azure-tooling.sh
+
 cat <<'MSG'
 
 Framebase Web Studio is ready.

@@ -1,0 +1,4 @@
+# Microsoft Foundry / Azure SDKs for the Python workloads (MediaWorkshop, AgentsStudio).
+azure-ai-projects
+azure-identity
+openai
