@@ -10,6 +10,8 @@
 
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Lets `gh codespace ssh|logs|cp` reach the container (the Node base image has no SSH server).
+    "ghcr.io/devcontainers/features/sshd:1": {},
     "ghcr.io/devcontainers/features/azure-cli:1": { "installBicep": true },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     // Python 3.12 for MediaWorkshop / AgentsStudio. Deps install on demand (see post-create.sh).
