@@ -1,34 +1,21 @@
 {
   "name": "Framebase Web Studio",
-  "dockerComposeFile": "docker-compose.yml",
-  "service": "app",
-  "workspaceFolder": "/workspaces/framebase",
-  "shutdownAction": "stopCompose",
+  // Single prebuilt image, no sidecars: starts fast. Heavy tooling is opt-in (see .devcontainer/README.md).
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
 
-  // 4 cores / 8 GB matches the Codespaces plan in the migration doc (batch work needs more than the minimum).
   "hostRequirements": { "cpus": 4, "memory": "8gb", "storage": "32gb" },
 
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    // Lets `gh codespace ssh|logs|cp` reach the container (the Node base image has no SSH server).
+    // Lets `gh codespace ssh|logs|cp` reach the container.
     "ghcr.io/devcontainers/features/sshd:1": {},
-    "ghcr.io/devcontainers/features/azure-cli:1": { "installBicep": true },
-    // Azure Developer CLI (1.37+ is required by the `azd ai` Foundry extensions).
-    "ghcr.io/azure/azure-dev/azd:latest": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    // Python 3.12 for MediaWorkshop / AgentsStudio. Deps install on demand (see post-create.sh).
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.12",
-      "installTools": false
-    }
+    "ghcr.io/devcontainers/features/azure-cli:1": {}
   },
 
-  "forwardPorts": [5173, 8788, 8787, "db:5432"],
+  "forwardPorts": [5173, 8788],
   "portsAttributes": {
-    "5173": { "label": "Web app (Vite)", "onAutoForward": "openPreview" },
-    "8788": { "label": "Web API (Hono)", "onAutoForward": "silent" },
-    "8787": { "label": "Cloud API (wrangler)", "onAutoForward": "silent" },
-    "db:5432": { "label": "PostgreSQL", "onAutoForward": "silent" }
+    "5173": { "label": "Web app (Vite)", "onAutoForward": "openBrowser" },
+    "8788": { "label": "Web API (Hono)", "onAutoForward": "silent" }
   },
 
   // Names only. Set real values as Codespaces user/org secrets; never commit them.
@@ -50,37 +37,19 @@
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
-        "GitHub.vscode-github-actions",
-        "GitHub.vscode-pull-request-github",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "ms-azuretools.vscode-bicep",
-        "ms-azuretools.vscode-azureresourcegroups",
-        "ms-azuretools.vscode-azurecontainerapps",
-        "ms-azuretools.azure-dev",
-        "ms-azuretools.vscode-azure-mcp-server",
-        "ms-azuretools.vscode-azure-github-copilot",
-        "TeamsDevApp.vscode-ai-foundry",
-        "ms-windows-ai-studio.windows-ai-studio",
-        "ms-ossdata.vscode-pgsql",
-        "ms-azuretools.vscode-docker",
-        "ms-python.python",
-        "ms-playwright.playwright",
-        "cloudflare.vscode-wrangler"
+        "GitHub.vscode-github-actions"
       ],
       "settings": {
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "[python]": { "editor.defaultFormatter": "ms-python.python" },
         "typescript.tsdk": "Web/node_modules/typescript/lib",
-        "typescript.preferences.importModuleSpecifier": "non-relative",
         "eslint.workingDirectories": [
           { "directory": "Web", "changeProcessCWD": true }
         ],
-        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
         "files.watcherExclude": {
           "**/node_modules/**": true,
-          "**/.venv/**": true,
           "**/dist/**": true
         }
       }

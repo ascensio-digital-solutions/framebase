@@ -19,7 +19,7 @@ Source of the product and architecture decisions: `Framebase 2.0 — Azure AI Vi
 ## Repository layout
 
 ```text
-.devcontainer/         Codespaces dev container (Node 22, Python 3.12, Azure CLI + Bicep, azd + Foundry extensions, gh, Docker, PostgreSQL sidecar)
+.devcontainer/         Lean Codespaces dev container (Node 22, gh, Azure CLI); Azure/Foundry tooling is opt-in
 .mcp.json              Project MCP servers for Claude Code: Azure MCP, Foundry MCP (remote), Microsoft Learn
 .vscode/mcp.json       The same MCP servers for VS Code / Copilot
 Web/
@@ -49,7 +49,7 @@ The macOS `ci.yml` ignores `Web/**` and `.devcontainer/**` because macOS minutes
 
 ### Milestone 1 status
 
-- [x] Dev container with PostgreSQL sidecar, port forwarding and recommended-secret names.
+- [x] Lean dev container, port forwarding and recommended-secret names.
 - [x] `Web/` workspace: contracts, API (`/healthz`, `/v1/config`, `/v1/commands` validation), app shell with resizable/collapsible panels.
 - [x] Local verification: typecheck, ESLint, Prettier, 20 unit tests, production bundle served by the API.
 - [x] `web-ci.yml` (Linux) and manual `web-image.yml` (OIDC to ACR, no deploy).
