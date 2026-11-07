@@ -1,0 +1,64 @@
+name: Web CI
+
+# Linux runners only. The macOS CI (ci.yml) ignores these paths because macOS minutes bill at ~10x.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Web/**"
+      - ".devcontainer/**"
+      - ".github/workflows/web-ci.yml"
+  pull_request:
+    paths:
+      - "Web/**"
+      - ".devcontainer/**"
+      - ".github/workflows/web-ci.yml"
+
+concurrency:
+  group: framebase-web-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Web
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Web/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+
+  image:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      # Build only; publishing to Azure Container Registry is the manual web-image workflow.
+      - name: Build container image
+        run: docker build --build-arg GIT_SHA=${{ github.sha }} -t framebase-web:ci Web
+      - name: Smoke-test the container
+        run: |
+          docker run -d --name fb -p 8080:8080 framebase-web:ci
+          for i in $(seq 1 15); do
+            curl -fsS http://127.0.0.1:8080/healthz && exit 0
+            sleep 1
+          done
+          docker logs fb
+          exit 1

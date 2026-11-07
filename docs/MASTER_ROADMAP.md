@@ -21,6 +21,8 @@ This roadmap is derived from the complete Framebase product conversation and the
 ### Plan freshness note — audited 2026-08-21
 The most recently updated focused plan is `docs/phases/PHASE_9_LIBRARY_SPACES.md`, last changed 2026-08-10 in commit `7bfa665` (`Add separate personal and HSC libraries`). The roadmap itself was last changed in that same commit. Earlier phase files remain as implementation contracts and exit-gate evidence; they are not deleted merely because their local slices are implemented. Current status is maintained here and in `PROJECT.md`.
 
+A browser-based web studio (Explorer, Create and Understand chats, Grid/List/Board workspace) is planned as a parallel track in `docs/phases/PHASE_10_WEB_STUDIO.md`. It reuses the Cloudflare catalog and API, adds no second catalog, and its Milestone 1 foundation is scaffolded under `Web/` and `.devcontainer/`. Azure resources and deployments remain approval-gated.
+
 ## Status vocabulary
 
 Framebase documentation must distinguish these states precisely:

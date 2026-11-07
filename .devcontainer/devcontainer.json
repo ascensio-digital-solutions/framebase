@@ -1,0 +1,77 @@
+{
+  "name": "Framebase Web Studio",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/framebase",
+  "shutdownAction": "stopCompose",
+
+  // 4 cores / 8 GB matches the Codespaces plan in the migration doc (batch work needs more than the minimum).
+  "hostRequirements": { "cpus": 4, "memory": "8gb", "storage": "32gb" },
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/azure-cli:1": { "installBicep": true },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    // Python 3.12 for MediaWorkshop / AgentsStudio. Deps install on demand (see post-create.sh).
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": false
+    }
+  },
+
+  "forwardPorts": [5173, 8788, 8787, "db:5432"],
+  "portsAttributes": {
+    "5173": { "label": "Web app (Vite)", "onAutoForward": "openPreview" },
+    "8788": { "label": "Web API (Hono)", "onAutoForward": "silent" },
+    "8787": { "label": "Cloud API (wrangler)", "onAutoForward": "silent" },
+    "db:5432": { "label": "PostgreSQL", "onAutoForward": "silent" }
+  },
+
+  // Names only. Set real values as Codespaces user/org secrets; never commit them.
+  "secrets": {
+    "OPENROUTER_API_KEY": {
+      "description": "OpenRouter key for chat, vision and image generation (server-side only)."
+    },
+    "FRAMEBASE_CLOUD_API_URL": {
+      "description": "Base URL of the Framebase Cloudflare API (development Worker unless approved otherwise)."
+    },
+    "FRAMEBASE_CLOUD_API_TOKEN": {
+      "description": "Scoped device token for the Framebase Cloudflare API. Never a raw R2 or D1 credential."
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "GitHub.vscode-github-actions",
+        "GitHub.vscode-pull-request-github",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-bicep",
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "ms-playwright.playwright",
+        "cloudflare.vscode-wrangler"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": { "editor.defaultFormatter": "ms-python.python" },
+        "typescript.tsdk": "Web/node_modules/typescript/lib",
+        "typescript.preferences.importModuleSpecifier": "non-relative",
+        "eslint.workingDirectories": [
+          { "directory": "Web", "changeProcessCWD": true }
+        ],
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "files.watcherExclude": {
+          "**/node_modules/**": true,
+          "**/.venv/**": true,
+          "**/dist/**": true
+        }
+      }
+    }
+  }
+}

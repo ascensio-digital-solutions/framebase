@@ -7,10 +7,16 @@ on:
     paths-ignore:
       - "**/*.md"
       - "docs/**"
+      - "Web/**"
+      - ".devcontainer/**"
+      - ".github/workflows/web-*.yml"
   pull_request:
     paths-ignore:
       - "**/*.md"
       - "docs/**"
+      - "Web/**"
+      - ".devcontainer/**"
+      - ".github/workflows/web-*.yml"
 
 concurrency:
   group: framebase-${{ github.workflow }}-${{ github.ref }}
