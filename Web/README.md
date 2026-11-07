@@ -21,7 +21,13 @@ npm run check    # typecheck + lint + tests
 npm run build    # server bundle + app build
 ```
 
-Local settings live in `Web/.env.local` (copied from `.env.example`, git-ignored). In a Codespace, set `OPENROUTER_API_KEY`, `FRAMEBASE_CLOUD_API_URL` and `FRAMEBASE_CLOUD_API_TOKEN` as Codespaces secrets.
+Local settings live in `Web/.env.local` (copied from `.env.example`, git-ignored). In a Codespace, set `OPENROUTER_API_KEY`, `FRAMEBASE_CLOUD_API_URL` and `FRAMEBASE_CLOUD_PAIRING_SECRET` as Codespaces secrets.
+
+## Connecting to your Cloudflare library (read-only)
+
+The server enrolls itself as a device on the Framebase Worker (`FRAMEBASE_CLOUD_API_URL`) with an ephemeral ECDSA key and only the `library.read` scope, then serves the catalog (`/v1/library/*`) and thumbnails/previews from the Worker's derivative endpoint. Credentials never reach the browser. The first request downloads the whole catalog (it is paged and cached for 15 minutes); the in-app Refresh button is rate limited.
+
+Enrolling writes one row to the target Worker's `devices` table, so do it deliberately: use the development Worker unless you have decided otherwise. In production the library routes stay off until `LIBRARY_ACCESS_PROTECTED=true`, because they serve private media with no sign-in of their own.
 
 ## Container
 

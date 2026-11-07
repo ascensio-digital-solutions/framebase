@@ -26,8 +26,8 @@
     "FRAMEBASE_CLOUD_API_URL": {
       "description": "Base URL of the Framebase Cloudflare API (development Worker unless approved otherwise)."
     },
-    "FRAMEBASE_CLOUD_API_TOKEN": {
-      "description": "Scoped device token for the Framebase Cloudflare API. Never a raw R2 or D1 credential."
+    "FRAMEBASE_CLOUD_PAIRING_SECRET": {
+      "description": "The Framebase Worker's pairing credential. The web server uses it only to enroll itself as a read-only (library.read) device. Never a raw R2/D1 or Cloudflare API token."
     }
   },
 

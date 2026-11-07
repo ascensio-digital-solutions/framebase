@@ -58,6 +58,17 @@ The macOS `ci.yml` ignores `Web/**` and `.devcontainer/**` because macOS minutes
 - [ ] Azure OIDC federated credential and the `staging` environment with required reviewers.
 - [ ] Staging deployment and smoke test (approval-gated).
 
+### Milestone 2 status (library workspace, read-only)
+
+- [x] Server-side Cloudflare client: ephemeral-key device enrollment (`library.read` only), session refresh by repeating the signed challenge, paged catalog bootstrap, derivative proxy.
+- [x] In-memory catalog index with folder roll-up counts, album/tag/search filters, cursor paging, trash excluded. Tested against a fake Worker that verifies real ECDSA signatures.
+- [x] Explorer tree, Grid/List views with real thumbnails, preview panel (checked visually against synthetic data only).
+- [ ] Live connection to a Framebase Worker. Needs: the target Worker URL, its pairing secret as a Codespaces secret, and approval to enroll a device (one `devices` row written).
+- [ ] Authentication in front of the web server before any deployment (Cloudflare Access or Entra). Library routes are disabled in production until `LIBRARY_ACCESS_PROTECTED=true`.
+- [ ] Writes (move, tag, trash, upload) and incremental sync via `/v1/changes`. Reads only for now.
+
+Observed 2026-11-07 (read-only): `framebase-api-dev` and `framebase-api-prod` Workers are deployed and healthy, `hsc-media-delivery` serves `assets.hairsolutions.co`, and `framebase-personal-api-prod` is not deployed. Whether `framebase-catalog-prod` actually holds the 8,252 HSC assets was not verified, because the available narrow token cannot read D1.
+
 ### Milestone 0 questions that block later work
 
 - Where does the authoritative Hair Concierge corpus and live index reside (Google Vertex RAG today)? Do not build a second migration until this is answered.

@@ -2,16 +2,33 @@ import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { commandEnvelopeSchema } from "@framebase/web-contracts";
+import { CloudClient } from "./cloud/client";
 import type { Env } from "./env";
+import { createLibraryRoutes } from "./library";
 
 const SERVICE = "framebase-web";
+
+export interface AppDeps {
+  /** Injected in tests. Defaults to a client built from the environment, if configured. */
+  cloud?: CloudClient;
+}
 
 /**
  * The browser only ever talks to this server. Cloudflare, OpenRouter and PostgreSQL credentials
  * stay server-side so the existing native API security boundary is preserved.
  */
-export function createApp(env: Env) {
+export function createApp(env: Env, deps: AppDeps = {}) {
   const app = new Hono();
+
+  const cloud =
+    deps.cloud ??
+    (env.FRAMEBASE_CLOUD_API_URL && env.FRAMEBASE_CLOUD_PAIRING_SECRET
+      ? new CloudClient({
+          baseUrl: env.FRAMEBASE_CLOUD_API_URL,
+          pairingSecret: env.FRAMEBASE_CLOUD_PAIRING_SECRET,
+          deviceId: env.FRAMEBASE_WEB_DEVICE_ID,
+        })
+      : undefined);
 
   app.use("*", secureHeaders());
 
@@ -22,13 +39,15 @@ export function createApp(env: Env) {
     c.json({
       providers: {
         openrouter: Boolean(env.OPENROUTER_API_KEY),
-        cloudCatalog: Boolean(env.FRAMEBASE_CLOUD_API_URL && env.FRAMEBASE_CLOUD_API_TOKEN),
+        cloudCatalog: Boolean(cloud),
         database: Boolean(env.DATABASE_URL),
       },
     }),
   );
 
-  // Validates the typed command envelope. Execution lands with the library workspace milestone,
+  app.route("/v1/library", createLibraryRoutes(env, cloud));
+
+  // Validates the typed command envelope. Execution lands with the connected-agents milestone,
   // so a valid envelope is acknowledged as not implemented rather than pretending to apply.
   app.post("/v1/commands", async (c) => {
     let body: unknown;

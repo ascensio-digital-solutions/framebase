@@ -13,8 +13,19 @@ const envSchema = z.object({
   APP_COMMIT: z.string().default("dev"),
   DATABASE_URL: optional(z.string()),
   OPENROUTER_API_KEY: optional(z.string()),
+
+  /** Base URL of the Framebase Cloudflare API Worker for the library being browsed. */
   FRAMEBASE_CLOUD_API_URL: optional(z.url()),
-  FRAMEBASE_CLOUD_API_TOKEN: optional(z.string()),
+  /** The Worker's pairing credential. Used only to enroll this server as a read-only device. */
+  FRAMEBASE_CLOUD_PAIRING_SECRET: optional(z.string()),
+  /** Stable ID for this server's device record on the Worker. */
+  FRAMEBASE_WEB_DEVICE_ID: z.string().min(3).max(128).default("framebase-web-studio"),
+  /**
+   * Set to true only when an authentication layer (Cloudflare Access, Entra/Easy Auth) sits in front of
+   * this server. In production the library routes stay disabled until you assert that, because they
+   * serve private media with no sign-in of their own.
+   */
+  LIBRARY_ACCESS_PROTECTED: z.preprocess(blankToUndefined, z.stringbool().default(false)),
 });
 
 export type Env = z.infer<typeof envSchema>;
