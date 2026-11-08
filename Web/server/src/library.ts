@@ -24,9 +24,20 @@ export function createLibraryRoutes(
   // so start it at boot instead of making the first visitor wait. Skipped where access is not allowed.
   const allowed = env.NODE_ENV !== "production" || env.LIBRARY_ACCESS_PROTECTED;
   if (options.warmUp && store && allowed) {
+    const started = Date.now();
     store
       .get()
-      .catch(() => console.error("catalog warm-up failed; it will retry on first request"));
+      .then((index) => {
+        const s = index.summary();
+        console.log(
+          `catalog ready: ${s.assetCount} assets, ${s.folderCount} folders in ${Date.now() - started} ms`,
+        );
+      })
+      .catch((error: unknown) =>
+        console.error(
+          `catalog warm-up failed (${error instanceof CloudApiError ? `${error.code}, HTTP ${error.status}` : "unexpected error"}); it will retry on first request`,
+        ),
+      );
   }
 
   // These routes serve private media and have no sign-in of their own.
