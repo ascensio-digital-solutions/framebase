@@ -8,11 +8,51 @@ import { createLibraryRoutes } from "./library";
 
 const SERVICE = "framebase-web";
 
+export interface LibraryDef {
+  id: string;
+  label: string;
+  cloud: CloudClient;
+}
+
 export interface AppDeps {
-  /** Injected in tests. Defaults to a client built from the environment, if configured. */
+  /** Injected in tests: a single library. */
   cloud?: CloudClient;
+  /** Injected in tests: several libraries. */
+  libraries?: LibraryDef[];
   /** Load the catalog in the background at startup. Enabled by the real server, not by tests. */
   warmUp?: boolean;
+}
+
+/** Libraries configured in the environment. Each has its own Worker, device identity and credentials. */
+function librariesFromEnv(env: Env): LibraryDef[] {
+  // Least privilege: read-only unless edits are explicitly enabled. Permanent deletion is never requested.
+  const scopes = env.LIBRARY_WRITES_ENABLED
+    ? ["library.read", "assets.metadata.write", "assets.organize", "trash.write"]
+    : ["library.read"];
+  const make = (id: string, label: string, baseUrl?: string, pairingSecret?: string) =>
+    baseUrl && pairingSecret
+      ? [
+          {
+            id,
+            label,
+            cloud: new CloudClient({
+              baseUrl,
+              pairingSecret,
+              deviceId: env.FRAMEBASE_WEB_DEVICE_ID,
+              scopes,
+            }),
+          },
+        ]
+      : [];
+  return [
+    ...make("hsc", "HSC Library", env.FRAMEBASE_CLOUD_API_URL, env.FRAMEBASE_CLOUD_PAIRING_SECRET),
+    ...make(
+      "personal",
+      "Personal Library",
+      env.FRAMEBASE_PERSONAL_API_URL,
+      env.FRAMEBASE_PERSONAL_PAIRING_SECRET,
+    ),
+  ];
 }
 
 /**
@@ -22,19 +62,9 @@ export interface AppDeps {
 export function createApp(env: Env, deps: AppDeps = {}) {
   const app = new Hono();
 
-  const cloud =
-    deps.cloud ??
-    (env.FRAMEBASE_CLOUD_API_URL && env.FRAMEBASE_CLOUD_PAIRING_SECRET
-      ? new CloudClient({
-          baseUrl: env.FRAMEBASE_CLOUD_API_URL,
-          pairingSecret: env.FRAMEBASE_CLOUD_PAIRING_SECRET,
-          deviceId: env.FRAMEBASE_WEB_DEVICE_ID,
-          // Least privilege: read-only unless edits are explicitly enabled. Permanent deletion is never requested.
-          scopes: env.LIBRARY_WRITES_ENABLED
-            ? ["library.read", "assets.metadata.write", "assets.organize", "trash.write"]
-            : ["library.read"],
-        })
-      : undefined);
+  const libraries: LibraryDef[] =
+    deps.libraries ??
+    (deps.cloud ? [{ id: "library", label: "Library", cloud: deps.cloud }] : librariesFromEnv(env));
 
   app.use("*", secureHeaders());
 
@@ -45,14 +75,23 @@ export function createApp(env: Env, deps: AppDeps = {}) {
     c.json({
       providers: {
         openrouter: Boolean(env.OPENROUTER_API_KEY),
-        cloudCatalog: Boolean(cloud),
+        cloudCatalog: libraries.length > 0,
         database: Boolean(env.DATABASE_URL),
       },
-      library: { writes: Boolean(cloud) && env.LIBRARY_WRITES_ENABLED },
+      library: { writes: libraries.length > 0 && env.LIBRARY_WRITES_ENABLED },
+      // Each library is separate: its own catalog, search and edits. Nothing is merged across libraries.
+      libraries: libraries.map(({ id, label }) => ({ id, label })),
     }),
   );
 
-  app.route("/v1/library", createLibraryRoutes(env, cloud, { warmUp: deps.warmUp }));
+  if (libraries.length === 0) {
+    app.route("/v1/library", createLibraryRoutes(env, undefined)); // answers 503 cloud_not_configured
+  }
+  libraries.forEach((lib, i) => {
+    const routes = createLibraryRoutes(env, lib.cloud, { warmUp: deps.warmUp });
+    app.route(`/v1/libraries/${lib.id}`, routes);
+    if (i === 0) app.route("/v1/library", routes); // the first library is the default
+  });
 
   // Validates the typed command envelope. Execution lands with the connected-agents milestone,
   // so a valid envelope is acknowledged as not implemented rather than pretending to apply.

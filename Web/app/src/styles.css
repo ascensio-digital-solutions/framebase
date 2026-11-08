@@ -644,3 +644,11 @@ input:not([type="checkbox"]):not([type="radio"]) {
   cursor: pointer;
   padding: 0 4px;
 }
+
+.library-switch {
+  width: auto;
+  margin-left: 8px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 13px;
+}

@@ -54,27 +54,38 @@ export type Edit = LibraryAction extends infer A
     : never
   : never;
 
+export interface LibraryInfo {
+  id: string;
+  label: string;
+}
+
+/** The library every request goes to. Libraries are separate; nothing is ever merged across them. */
+let base = "/v1/library";
+export const setActiveLibrary = (id?: string) => {
+  base = id ? `/v1/libraries/${encodeURIComponent(id)}` : "/v1/library";
+};
+
 export const imageUrl = (assetId: string, variant: ImageVariant) =>
-  `/v1/library/assets/${encodeURIComponent(assetId)}/image?variant=${variant}`;
+  `${base}/assets/${encodeURIComponent(assetId)}/image?variant=${variant}`;
 
 export const libraryApi = {
   config: (signal?: AbortSignal) =>
-    getJson<{ library?: { writes?: boolean } }>("/v1/config", signal),
-  summary: (signal?: AbortSignal) => getJson<LibrarySummary>("/v1/library/summary", signal),
-  structure: (signal?: AbortSignal) => getJson<LibraryStructure>("/v1/library/structure", signal),
+    getJson<{ library?: { writes?: boolean }; libraries?: LibraryInfo[] }>("/v1/config", signal),
+  summary: (signal?: AbortSignal) => getJson<LibrarySummary>(`${base}/summary`, signal),
+  structure: (signal?: AbortSignal) => getJson<LibraryStructure>(`${base}/structure`, signal),
   assets: (query: AssetQuery, signal?: AbortSignal) => {
     const params = new URLSearchParams({ limit: "120" });
     for (const [key, value] of Object.entries(query)) if (value) params.set(key, String(value));
-    return getJson<LibraryAssetPage>(`/v1/library/assets?${params}`, signal);
+    return getJson<LibraryAssetPage>(`${base}/assets?${params}`, signal);
   },
   async refresh(): Promise<LibrarySummary> {
-    const res = await fetch("/v1/library/refresh", { method: "POST" });
+    const res = await fetch(`${base}/refresh`, { method: "POST" });
     if (!res.ok) throw new ApiError(res.status, "refresh_failed");
     return (await res.json()) as LibrarySummary;
   },
   /** Applies one edit. `operationId` makes a retry of the same user action safe. */
   async act(edit: Edit, operationId = crypto.randomUUID()): Promise<LibraryActionResult> {
-    const res = await fetch("/v1/library/actions", {
+    const res = await fetch(`${base}/actions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...edit, operationId }),

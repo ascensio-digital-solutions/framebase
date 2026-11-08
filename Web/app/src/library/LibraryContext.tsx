@@ -14,7 +14,7 @@ import type {
   LibraryStructure,
   LibrarySummary,
 } from "@framebase/web-contracts";
-import { ApiError, libraryApi, type Edit } from "./api";
+import { ApiError, libraryApi, setActiveLibrary, type Edit } from "./api";
 
 export interface Filter {
   folderId?: string;
@@ -103,7 +103,15 @@ function describe(error: unknown): { phase: Phase; message: string } {
 
 const EDITS_THAT_STAY_IN_PLACE = new Set(["rename", "favorite", "rating"]);
 
-export function LibraryProvider({ children }: { children: ReactNode }) {
+export function LibraryProvider({
+  libraryId,
+  children,
+}: {
+  /** Which library to show. The provider is remounted (by key) when this changes, so nothing carries over. */
+  libraryId?: string;
+  children: ReactNode;
+}) {
+  useState(() => setActiveLibrary(libraryId)); // before the first fetch of this mount
   const [phase, setPhase] = useState<Phase>("loading");
   const [message, setMessage] = useState<string>();
   const [summary, setSummary] = useState<LibrarySummary>();

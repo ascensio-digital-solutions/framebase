@@ -18,6 +18,9 @@ const envSchema = z.object({
   FRAMEBASE_CLOUD_API_URL: optional(z.url()),
   /** The Worker's pairing credential. Used only to enroll this server as a read-only device. */
   FRAMEBASE_CLOUD_PAIRING_SECRET: optional(z.string()),
+  /** A second library (Personal), served by its own Worker. Libraries are never merged. */
+  FRAMEBASE_PERSONAL_API_URL: optional(z.url()),
+  FRAMEBASE_PERSONAL_PAIRING_SECRET: optional(z.string()),
   /** Stable ID for this server's device record on the Worker. */
   FRAMEBASE_WEB_DEVICE_ID: z.string().min(3).max(128).default("framebase-web-studio"),
   /**
