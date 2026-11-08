@@ -56,7 +56,10 @@ The macOS `ci.yml` ignores `Web/**` and `.devcontainer/**` because macOS minutes
 - [ ] Container image built and smoke-tested (runs in `web-ci.yml`; Docker was not available on the authoring Mac).
 - [ ] Bicep infrastructure under `infra/azure/` (needs the Milestone 0 resource inventory first).
 - [ ] Azure OIDC federated credential and the `staging` environment with required reviewers.
-- [ ] Staging deployment and smoke test (approval-gated).
+- [x] Container image built and verified (2026-11-08) via `az acr build` in the existing `crhairsoldevcus` registry (digest `sha256:5dbe0a8e…`, commit `7db04882`).
+- [x] Staging deployment (2026-11-08): Container App `framebase-web-staging` in the existing `cae-hair-sol-dev-cus` environment (`rg-hair-sol-dev-cus`, Central US), 0.25 vCPU / 0.5 GiB, scale 0 to 2, system-assigned identity pulling from ACR. URL: `https://framebase-web-staging.blacksea-985163be.centralus.azurecontainerapps.io`. Smoke-tested: `/healthz` reports the deployed commit, the app shell and client routes load, `/v1/library/*` returns `cloud_not_configured`. **No secrets, no Cloudflare connection, no media.** Redeploy with `Web/scripts/deploy-staging.sh`.
+- [ ] Authentication in front of staging (Entra Easy Auth or Cloudflare Access) **before** any Cloudflare secret is added. The URL is currently public, but it only serves the empty shell.
+- [ ] Move to a dedicated `rg-hsc-framebase-eus2` environment and Bicep definitions once the Milestone 0 inventory is done (the app is stateless, so this is a redeploy).
 
 ### Milestone 2 status (library workspace, read-only)
 
