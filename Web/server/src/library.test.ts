@@ -104,11 +104,12 @@ describe("library routes", () => {
     it("only proxies catalog assets and the browse variants", async () => {
       const { app, cloud } = setup();
       expect((await app.request("/v1/library/assets/missing/image")).status).toBe(404);
-      expect((await app.request("/v1/library/assets/a5/image")).status).toBe(404); // trashed
+      // Trashed items still have previews so the Trash view can show what you would restore.
+      expect((await app.request("/v1/library/assets/a5/image")).status).toBe(200);
       expect((await app.request("/v1/library/assets/a1/image?variant=social-story")).status).toBe(
         400,
       );
-      expect(cloud.state.variantCalls).toBe(0);
+      expect(cloud.state.variantCalls).toBe(1); // only the trashed-but-known asset reached the Worker
     });
 
     it("maps upstream problems without exposing details", async () => {

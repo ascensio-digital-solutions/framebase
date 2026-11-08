@@ -152,6 +152,42 @@ export class CloudClient {
     return res;
   }
 
+  /**
+   * Applies edits through the Worker's audited mutation pipeline. The Idempotency-Key makes a retried
+   * request safe: the Worker replays its stored answer instead of applying the edit twice. A stale
+   * revision comes back as CloudApiError(409, "STALE_REVISION").
+   */
+  async mutate(
+    operations: {
+      type: string;
+      targetId: string;
+      baseRevision?: number;
+      payload: Record<string, unknown>;
+    }[],
+    idempotencyKey: string,
+  ): Promise<{ results: { targetId: string; operation: string; revision: number }[] }> {
+    const send = async (token: string) =>
+      this.#opts.fetchImpl(`${this.#opts.baseUrl}/v1/mutations`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          "idempotency-key": idempotencyKey,
+        },
+        body: JSON.stringify({ operations }),
+        signal: AbortSignal.timeout(this.#opts.timeoutMs),
+      });
+    let res = await send(await this.#token());
+    if (res.status === 401) {
+      await res.body?.cancel();
+      res = await send(await this.#token(true));
+    }
+    if (!res.ok) throw await this.#failure(res, "Mutation");
+    return (await res.json()) as {
+      results: { targetId: string; operation: string; revision: number }[];
+    };
+  }
+
   /** Reads the entire catalog snapshot, following pagination. */
   async fetchCatalog(): Promise<{ entities: BootstrapEntity[]; watermarkRevision: number }> {
     const entities: BootstrapEntity[] = [];

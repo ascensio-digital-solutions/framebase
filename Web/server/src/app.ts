@@ -29,6 +29,10 @@ export function createApp(env: Env, deps: AppDeps = {}) {
           baseUrl: env.FRAMEBASE_CLOUD_API_URL,
           pairingSecret: env.FRAMEBASE_CLOUD_PAIRING_SECRET,
           deviceId: env.FRAMEBASE_WEB_DEVICE_ID,
+          // Least privilege: read-only unless edits are explicitly enabled. Permanent deletion is never requested.
+          scopes: env.LIBRARY_WRITES_ENABLED
+            ? ["library.read", "assets.metadata.write", "assets.organize", "trash.write"]
+            : ["library.read"],
         })
       : undefined);
 

@@ -26,6 +26,11 @@ const envSchema = z.object({
    * serve private media with no sign-in of their own.
    */
   LIBRARY_ACCESS_PROTECTED: z.preprocess(blankToUndefined, z.stringbool().default(false)),
+  /**
+   * Allow edits to the library (rename, favorite, rating, tags, move, Trash and restore). Off by default.
+   * When on, this server enrolls with the extra scopes those edits need; permanent deletion is never offered.
+   */
+  LIBRARY_WRITES_ENABLED: z.preprocess(blankToUndefined, z.stringbool().default(false)),
 });
 
 export type Env = z.infer<typeof envSchema>;

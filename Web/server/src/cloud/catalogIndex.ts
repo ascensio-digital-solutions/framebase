@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   LibraryAsset,
   LibraryAssetPage,
+  LibraryNamedCount,
   LibraryStructure,
   LibrarySummary,
 } from "@framebase/web-contracts";
@@ -15,6 +16,11 @@ const folderPayload = z.object({
   systemKind: z.string().nullable().optional(),
   sortOrder: z.number(),
 });
+const trashPayload = z.object({
+  priorFolderId: z.string(),
+  trashedAt: z.string(),
+  scheduledPurgeAt: z.string(),
+});
 const assetPayload = z.object({
   id: z.string(),
   displayName: z.string(),
@@ -23,7 +29,7 @@ const assetPayload = z.object({
   rating: z.number(),
   blob: z.object({ byteSize: z.number(), mediaType: z.string() }),
   createdAt: z.string(),
-  trash: z.unknown().nullable().optional(),
+  trash: trashPayload.nullable().optional(),
 });
 const membershipPayload = z.object({
   id: z.string(),
@@ -34,31 +40,44 @@ const membershipPayload = z.object({
 const MAX_TAGS_RETURNED = 300;
 export const DEFAULT_PAGE_SIZE = 100;
 export const MAX_PAGE_SIZE = 300;
+/** Where the Worker puts a restored asset whose previous folder no longer exists. */
+const INBOX_FOLDER = "system-inbox";
 
 export interface AssetFilter {
   folderId?: string;
   albumId?: string;
   tagId?: string;
   q?: string;
+  /** List items in Trash instead of the live library. */
+  trashed?: boolean;
   cursor?: number;
   limit?: number;
 }
 
 type Folder = z.infer<typeof folderPayload>;
-type Membership = z.infer<typeof membershipPayload>;
+type Member = z.infer<typeof membershipPayload> & { revision: number };
+type AssetPatch = Partial<
+  Pick<LibraryAsset, "displayName" | "favorite" | "rating" | "folderId" | "revision">
+>;
 
 const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>
   a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 
-/** An in-memory, read-only index of one catalog snapshot. Trashed assets are excluded everywhere. */
+/**
+ * An in-memory index of one catalog snapshot, with helpers to apply edits locally after the Worker has
+ * accepted them (so the UI updates immediately; a later refresh brings the snapshot back to the truth).
+ */
 export class CatalogIndex {
-  readonly #assets = new Map<string, LibraryAsset>();
-  readonly #sortedIds: string[];
+  readonly #assets = new Map<string, LibraryAsset>(); // live library
+  readonly #trashed = new Map<string, LibraryAsset>(); // items in Trash
+  readonly #priorFolder = new Map<string, string>();
+  #sortedIds: string[] = [];
+  #sortedTrashedIds: string[] = [];
   readonly #folders: Folder[] = [];
-  readonly #albums: Membership[] = [];
-  readonly #tags: Membership[] = [];
+  readonly #albums: Member[] = [];
+  readonly #tags: Member[] = [];
   readonly #childrenByFolder = new Map<string, string[]>();
-  readonly #directCounts = new Map<string, number>();
+  #directCounts = new Map<string, number>();
   skipped = 0;
 
   constructor(
@@ -66,7 +85,7 @@ export class CatalogIndex {
     readonly watermarkRevision: number,
     readonly fetchedAt: string,
   ) {
-    const rawAssets: z.infer<typeof assetPayload>[] = [];
+    const rawAssets: { data: z.infer<typeof assetPayload>; revision: number }[] = [];
     for (const entity of entities) {
       switch (entity.entityType) {
         case "folder": {
@@ -77,7 +96,7 @@ export class CatalogIndex {
         }
         case "asset": {
           const p = assetPayload.safeParse(entity.payload);
-          if (p.success) rawAssets.push(p.data);
+          if (p.success) rawAssets.push({ data: p.data, revision: entity.revision });
           else this.skipped++;
           break;
         }
@@ -85,7 +104,11 @@ export class CatalogIndex {
         case "tag": {
           const p = membershipPayload.safeParse(entity.payload);
           if (!p.success) this.skipped++;
-          else (entity.entityType === "album" ? this.#albums : this.#tags).push(p.data);
+          else
+            (entity.entityType === "album" ? this.#albums : this.#tags).push({
+              ...p.data,
+              revision: entity.revision,
+            });
           break;
         }
         default:
@@ -93,7 +116,6 @@ export class CatalogIndex {
       }
     }
 
-    const live = rawAssets.filter((a) => !a.trash);
     const tagNames = new Map<string, string[]>();
     for (const tag of this.#tags) {
       for (const assetId of tag.assetIds) {
@@ -102,8 +124,8 @@ export class CatalogIndex {
         tagNames.set(assetId, names);
       }
     }
-    for (const a of live) {
-      this.#assets.set(a.id, {
+    for (const { data: a, revision } of rawAssets) {
+      const dto: LibraryAsset = {
         id: a.id,
         displayName: a.displayName,
         folderId: a.folderId,
@@ -113,17 +135,19 @@ export class CatalogIndex {
         byteSize: Math.max(0, Math.trunc(a.blob.byteSize)),
         createdAt: a.createdAt,
         tags: (tagNames.get(a.id) ?? []).sort(),
-      });
-      this.#directCounts.set(a.folderId, (this.#directCounts.get(a.folderId) ?? 0) + 1);
+        revision,
+      };
+      if (a.trash) {
+        this.#trashed.set(a.id, {
+          ...dto,
+          trashedAt: a.trash.trashedAt,
+          scheduledPurgeAt: a.trash.scheduledPurgeAt,
+        });
+        this.#priorFolder.set(a.id, a.trash.priorFolderId);
+      } else {
+        this.#assets.set(a.id, dto);
+      }
     }
-    this.#sortedIds = [...this.#assets.values()]
-      .sort(
-        (x, y) =>
-          x.displayName.toLowerCase().localeCompare(y.displayName.toLowerCase()) ||
-          x.id.localeCompare(y.id),
-      )
-      .map((a) => a.id);
-
     for (const folder of this.#folders) {
       if (folder.parentId) {
         const kids = this.#childrenByFolder.get(folder.parentId) ?? [];
@@ -131,11 +155,128 @@ export class CatalogIndex {
         this.#childrenByFolder.set(folder.parentId, kids);
       }
     }
+    this.#reindex();
+  }
+
+  /** Recomputes the sort orders and per-folder counts after any change to the asset maps. */
+  #reindex() {
+    this.#sortedIds = [...this.#assets.values()]
+      .sort(
+        (x, y) =>
+          x.displayName.toLowerCase().localeCompare(y.displayName.toLowerCase()) ||
+          x.id.localeCompare(y.id),
+      )
+      .map((a) => a.id);
+    this.#sortedTrashedIds = [...this.#trashed.values()]
+      .sort(
+        (x, y) => (y.trashedAt ?? "").localeCompare(x.trashedAt ?? "") || x.id.localeCompare(y.id),
+      )
+      .map((a) => a.id);
+    this.#directCounts = new Map();
+    for (const a of this.#assets.values()) {
+      this.#directCounts.set(a.folderId, (this.#directCounts.get(a.folderId) ?? 0) + 1);
+    }
   }
 
   get(id: string): LibraryAsset | undefined {
-    return this.#assets.get(id);
+    return this.#assets.get(id) ?? this.#trashed.get(id);
   }
+
+  hasFolder(id: string): boolean {
+    return this.#folders.some((f) => f.id === id);
+  }
+
+  tag(id: string): LibraryNamedCount | undefined {
+    const t = this.#tags.find((x) => x.id === id);
+    return t && { id: t.id, name: t.name, assetCount: this.#liveCount(t), revision: t.revision };
+  }
+
+  #liveCount(m: Member) {
+    return m.assetIds.filter((id) => this.#assets.has(id)).length;
+  }
+
+  // --- local edits, applied after the Worker accepted them -------------------------------------
+
+  patchAssets(changes: { id: string; patch: AssetPatch }[]): LibraryAsset[] {
+    const out: LibraryAsset[] = [];
+    for (const { id, patch } of changes) {
+      const current = this.#assets.get(id);
+      if (!current) continue;
+      const next = { ...current, ...patch };
+      this.#assets.set(id, next);
+      out.push(next);
+    }
+    this.#reindex();
+    return out;
+  }
+
+  trash(items: { id: string; revision: number }[], trashedAt: string): LibraryAsset[] {
+    const scheduledPurgeAt = new Date(Date.parse(trashedAt) + 30 * 86_400_000).toISOString();
+    const out: LibraryAsset[] = [];
+    for (const { id, revision } of items) {
+      const current = this.#assets.get(id);
+      if (!current) continue;
+      this.#priorFolder.set(id, current.folderId);
+      const moved = { ...current, revision, trashedAt, scheduledPurgeAt, tags: [] };
+      this.#assets.delete(id);
+      this.#trashed.set(id, moved);
+      out.push(moved);
+      // The Worker drops tag and album memberships on trash and restores them on restore.
+      for (const m of [...this.#tags, ...this.#albums])
+        m.assetIds = m.assetIds.filter((x) => x !== id);
+    }
+    this.#reindex();
+    return out;
+  }
+
+  restore(items: { id: string; revision: number }[]): LibraryAsset[] {
+    const out: LibraryAsset[] = [];
+    for (const { id, revision } of items) {
+      const current = this.#trashed.get(id);
+      if (!current) continue;
+      const prior = this.#priorFolder.get(id);
+      const folderId = prior && this.hasFolder(prior) ? prior : INBOX_FOLDER;
+      const { trashedAt: _t, scheduledPurgeAt: _s, ...rest } = current;
+      void _t;
+      void _s;
+      const live: LibraryAsset = { ...rest, folderId, revision };
+      this.#trashed.delete(id);
+      this.#priorFolder.delete(id);
+      this.#assets.set(id, live);
+      out.push(live);
+    }
+    this.#reindex();
+    return out;
+  }
+
+  addTag(tag: { id: string; name: string; revision: number }) {
+    this.#tags.push({ id: tag.id, name: tag.name, assetIds: [], revision: tag.revision });
+  }
+
+  setTagMembership(tagId: string, assetIds: string[], mode: "add" | "remove", revision: number) {
+    const tag = this.#tags.find((t) => t.id === tagId);
+    if (!tag) return [];
+    const ids = new Set(assetIds);
+    tag.revision = revision;
+    tag.assetIds =
+      mode === "add"
+        ? [...new Set([...tag.assetIds, ...assetIds])]
+        : tag.assetIds.filter((id) => !ids.has(id));
+    const out: LibraryAsset[] = [];
+    for (const id of assetIds) {
+      const a = this.#assets.get(id);
+      if (!a) continue;
+      const names = new Set(a.tags);
+      if (mode === "add") names.add(tag.name);
+      else names.delete(tag.name);
+      const next = { ...a, tags: [...names].sort() };
+      this.#assets.set(id, next);
+      out.push(next);
+    }
+    return out;
+  }
+
+  // --- views -----------------------------------------------------------------------------------
 
   summary(): LibrarySummary {
     return {
@@ -143,6 +284,7 @@ export class CatalogIndex {
       folderCount: this.#folders.length,
       albumCount: this.#albums.length,
       tagCount: this.#tags.length,
+      trashedCount: this.#trashed.size,
       watermarkRevision: this.watermarkRevision,
       fetchedAt: this.fetchedAt,
     };
@@ -171,9 +313,13 @@ export class CatalogIndex {
       totals.set(id, sum);
       return sum;
     };
-    const liveCount = (m: Membership) => m.assetIds.filter((id) => this.#assets.has(id)).length;
     const tags = this.#tags
-      .map((t) => ({ id: t.id, name: t.name, assetCount: liveCount(t) }))
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        assetCount: this.#liveCount(t),
+        revision: t.revision,
+      }))
       .sort((a, b) => b.assetCount - a.assetCount || byName(a, b));
     return {
       folders: [...this.#folders]
@@ -187,7 +333,12 @@ export class CatalogIndex {
           assetCount: total(f.id),
         })),
       albums: this.#albums
-        .map((a) => ({ id: a.id, name: a.name, assetCount: liveCount(a) }))
+        .map((a) => ({
+          id: a.id,
+          name: a.name,
+          assetCount: this.#liveCount(a),
+          revision: a.revision,
+        }))
         .sort(byName),
       tags: tags.slice(0, MAX_TAGS_RETURNED),
       tagsTotal: tags.length,
@@ -195,32 +346,33 @@ export class CatalogIndex {
   }
 
   query(filter: AssetFilter): LibraryAssetPage {
-    let ids = this.#sortedIds;
-    if (filter.folderId) {
-      const folders = this.#subtree(filter.folderId);
-      ids = ids.filter((id) => folders.has((this.#assets.get(id) as LibraryAsset).folderId));
-    }
-    const member = (list: Membership[], id: string) =>
-      new Set(list.find((m) => m.id === id)?.assetIds ?? []);
-    if (filter.albumId) {
-      const inAlbum = member(this.#albums, filter.albumId);
-      ids = ids.filter((id) => inAlbum.has(id));
-    }
-    if (filter.tagId) {
-      const tagged = member(this.#tags, filter.tagId);
-      ids = ids.filter((id) => tagged.has(id));
+    const source = filter.trashed ? this.#trashed : this.#assets;
+    let ids = filter.trashed ? this.#sortedTrashedIds : this.#sortedIds;
+    if (!filter.trashed) {
+      if (filter.folderId) {
+        const folders = this.#subtree(filter.folderId);
+        ids = ids.filter((id) => folders.has((source.get(id) as LibraryAsset).folderId));
+      }
+      const member = (list: Member[], id: string) =>
+        new Set(list.find((m) => m.id === id)?.assetIds ?? []);
+      if (filter.albumId) {
+        const inAlbum = member(this.#albums, filter.albumId);
+        ids = ids.filter((id) => inAlbum.has(id));
+      }
+      if (filter.tagId) {
+        const tagged = member(this.#tags, filter.tagId);
+        ids = ids.filter((id) => tagged.has(id));
+      }
     }
     const q = filter.q?.trim().toLowerCase();
     if (q) {
       ids = ids.filter((id) =>
-        (this.#assets.get(id) as LibraryAsset).displayName.toLowerCase().includes(q),
+        (source.get(id) as LibraryAsset).displayName.toLowerCase().includes(q),
       );
     }
     const offset = Math.max(0, filter.cursor ?? 0);
     const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, filter.limit ?? DEFAULT_PAGE_SIZE));
-    const page = ids
-      .slice(offset, offset + limit)
-      .map((id) => this.#assets.get(id) as LibraryAsset);
+    const page = ids.slice(offset, offset + limit).map((id) => source.get(id) as LibraryAsset);
     const next = offset + page.length;
     return { assets: page, total: ids.length, nextCursor: next < ids.length ? String(next) : null };
   }
@@ -282,5 +434,13 @@ export class CatalogStore {
   async refresh(): Promise<CatalogIndex> {
     if (this.#index && this.#now() - this.#loadedAt < this.#minRefresh) return this.#index;
     return this.#load();
+  }
+
+  /** Reloads in the background after an edit so the snapshot converges on the Worker's state. */
+  refreshSoon(delayMs = 5_000): void {
+    setTimeout(() => {
+      this.#loadedAt = 0; // bypass the minimum interval: an edit just happened
+      this.#load().catch(() => undefined);
+    }, delayMs).unref?.();
   }
 }
