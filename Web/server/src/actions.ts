@@ -36,9 +36,12 @@ function require_(index: CatalogIndex, ids: string[], where: "live" | "trashed")
   return found as LibraryAsset[];
 }
 
+type Mutated = Awaited<ReturnType<CloudClient["mutate"]>>;
+type Ops = Parameters<CloudClient["mutate"]>[0];
+
 /**
  * Applies one edit through the Worker's mutation API, then mirrors it in the local index.
- * Every request carries the asset's current revision, so an edit made elsewhere in the meantime is rejected
+ * Every request carries the target's current revision, so an edit made elsewhere in the meantime is rejected
  * (409) instead of silently overwritten, and the operation ID makes a retried request safe.
  */
 export async function applyAction(
@@ -46,35 +49,66 @@ export async function applyAction(
   index: CatalogIndex,
   action: LibraryAction,
 ): Promise<LibraryActionResult> {
-  const send = (ops: Parameters<CloudClient["mutate"]>[0], key: string) => cloud.mutate(ops, key);
-  const revisions = (res: Awaited<ReturnType<CloudClient["mutate"]>>) =>
-    new Map(res.results.map((r) => [r.targetId, r.revision]));
+  const send = (ops: Ops, key: string): Promise<Mutated> => cloud.mutate(ops, key);
+  const revisions = (res: Mutated) => new Map(res.results.map((r) => [r.targetId, r.revision]));
+  const missing = (what: string) =>
+    new ActionError(404, "not_found", `That ${what} no longer exists.`);
+
+  /** One batch of per-asset operations (the same operation for every asset), split to the Worker's limit. */
+  async function perAsset(
+    assets: LibraryAsset[],
+    make: (a: LibraryAsset) => { type: string; payload: Record<string, unknown> },
+  ): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    for (const [n, group] of chunk(assets, BATCH_SIZE).entries()) {
+      const res = await send(
+        group.map((a) => ({ ...make(a), targetId: a.id, baseRevision: a.revision })),
+        `${action.operationId}-${n}`,
+      );
+      const rev = revisions(res);
+      for (const a of group) out.set(a.id, rev.get(a.id) ?? a.revision + 1);
+    }
+    return out;
+  }
 
   switch (action.action) {
-    case "rename":
-    case "favorite":
-    case "rating": {
+    case "rename": {
       const [asset] = require_(index, [action.assetId], "live") as [LibraryAsset];
-      const op =
-        action.action === "rename"
-          ? { type: "rename_asset", payload: { displayName: action.displayName } }
-          : action.action === "favorite"
-            ? { type: "update_favorite", payload: { favorite: action.favorite } }
-            : { type: "update_rating", payload: { rating: action.rating } };
-      const res = await send(
-        [{ ...op, targetId: asset.id, baseRevision: asset.revision }],
-        action.operationId,
-      );
-      const revision = revisions(res).get(asset.id) ?? asset.revision + 1;
-      const patch =
-        action.action === "rename"
-          ? { displayName: action.displayName.trim() }
-          : action.action === "favorite"
-            ? { favorite: action.favorite }
-            : { rating: action.rating };
+      const rev = await perAsset([asset], () => ({
+        type: "rename_asset",
+        payload: { displayName: action.displayName },
+      }));
       return {
         status: "applied",
-        assets: index.patchAssets([{ id: asset.id, patch: { ...patch, revision } }]),
+        assets: index.patchAssets([
+          {
+            id: asset.id,
+            patch: { displayName: action.displayName.trim(), revision: rev.get(asset.id)! },
+          },
+        ]),
+      };
+    }
+
+    case "favorite":
+    case "rating": {
+      const assets = require_(index, action.assetIds, "live");
+      const favorite = action.action === "favorite";
+      const rev = await perAsset(assets, () =>
+        favorite
+          ? { type: "update_favorite", payload: { favorite: action.favorite } }
+          : { type: "update_rating", payload: { rating: action.rating } },
+      );
+      return {
+        status: "applied",
+        assets: index.patchAssets(
+          assets.map((a) => ({
+            id: a.id,
+            patch: {
+              ...(favorite ? { favorite: action.favorite } : { rating: action.rating }),
+              revision: rev.get(a.id)!,
+            },
+          })),
+        ),
       };
     }
 
@@ -83,54 +117,38 @@ export async function applyAction(
         throw new ActionError(400, "invalid_folder", "The destination folder does not exist.");
       }
       const assets = require_(index, action.assetIds, "live");
-      const changes: { id: string; patch: { folderId: string; revision: number } }[] = [];
-      for (const [n, group] of chunk(assets, BATCH_SIZE).entries()) {
-        const res = await send(
-          group.map((a) => ({
-            type: "move_asset",
-            targetId: a.id,
-            baseRevision: a.revision,
-            payload: { folderId: action.folderId },
-          })),
-          `${action.operationId}-${n}`,
-        );
-        const rev = revisions(res);
-        for (const a of group) {
-          changes.push({
+      const rev = await perAsset(assets, () => ({
+        type: "move_asset",
+        payload: { folderId: action.folderId },
+      }));
+      return {
+        status: "applied",
+        assets: index.patchAssets(
+          assets.map((a) => ({
             id: a.id,
-            patch: { folderId: action.folderId, revision: rev.get(a.id) ?? a.revision + 1 },
-          });
-        }
-      }
-      return { status: "applied", assets: index.patchAssets(changes) };
+            patch: { folderId: action.folderId, revision: rev.get(a.id)! },
+          })),
+        ),
+      };
     }
 
     case "trash":
     case "restore": {
       const trashing = action.action === "trash";
       const assets = require_(index, action.assetIds, trashing ? "live" : "trashed");
-      const done: { id: string; revision: number }[] = [];
-      for (const [n, group] of chunk(assets, BATCH_SIZE).entries()) {
-        const res = await send(
-          group.map((a) => ({
-            type: trashing ? "trash_asset" : "restore_asset",
-            targetId: a.id,
-            baseRevision: a.revision,
-            payload: trashing ? { retentionDays: TRASH_RETENTION_DAYS } : {},
-          })),
-          `${action.operationId}-${n}`,
-        );
-        const rev = revisions(res);
-        for (const a of group) done.push({ id: a.id, revision: rev.get(a.id) ?? a.revision + 1 });
-      }
+      const rev = await perAsset(assets, () =>
+        trashing
+          ? { type: "trash_asset", payload: { retentionDays: TRASH_RETENTION_DAYS } }
+          : { type: "restore_asset", payload: {} },
+      );
+      const done = assets.map((a) => ({ id: a.id, revision: rev.get(a.id)! }));
       const updated = trashing ? index.trash(done, new Date().toISOString()) : index.restore(done);
       return { status: "applied", assets: updated };
     }
 
     case "tag": {
       const tag = index.tag(action.tagId);
-      if (!tag || tag.revision === undefined)
-        throw new ActionError(404, "not_found", "That tag no longer exists.");
+      if (!tag || tag.revision === undefined) throw missing("tag");
       require_(index, action.assetIds, "live");
       const res = await send(
         [
@@ -162,6 +180,158 @@ export async function applyAction(
         assets: [],
         tag: { id, name: action.name, assetCount: 0, revision: 1 },
       };
+    }
+
+    // ---- albums: an album is a collection; removing from it or deleting it never deletes a photo ----
+    case "createAlbum": {
+      const id = `album-${action.operationId}`;
+      await send(
+        [{ type: "create_album", targetId: id, payload: { name: action.name } }],
+        action.operationId,
+      );
+      index.addAlbum({ id, name: action.name, revision: 1 });
+      return {
+        status: "applied",
+        assets: [],
+        album: { id, name: action.name, assetCount: 0, revision: 1 },
+      };
+    }
+
+    case "renameAlbum": {
+      const album = index.album(action.albumId);
+      if (!album || album.revision === undefined) throw missing("album");
+      const res = await send(
+        [
+          {
+            type: "rename_album",
+            targetId: album.id,
+            baseRevision: album.revision,
+            payload: { name: action.name },
+          },
+        ],
+        action.operationId,
+      );
+      index.patchAlbum(album.id, {
+        name: action.name,
+        revision: revisions(res).get(album.id) ?? album.revision + 1,
+      });
+      return { status: "applied", assets: [] };
+    }
+
+    case "deleteAlbum": {
+      const album = index.album(action.albumId);
+      if (!album || album.revision === undefined) throw missing("album");
+      await send(
+        [{ type: "delete_album", targetId: album.id, baseRevision: album.revision, payload: {} }],
+        action.operationId,
+      );
+      index.deleteAlbum(album.id);
+      return { status: "applied", assets: [] };
+    }
+
+    case "albumAdd":
+    case "albumRemove": {
+      const album = index.album(action.albumId);
+      if (!album || album.revision === undefined) throw missing("album");
+      const assets = require_(index, action.assetIds, "live");
+      const adding = action.action === "albumAdd";
+      const res = await send(
+        [
+          {
+            type: adding ? "add_assets_to_album" : "remove_assets_from_album",
+            targetId: album.id,
+            baseRevision: album.revision,
+            payload: { assetIds: [...new Set(action.assetIds)] },
+          },
+        ],
+        action.operationId,
+      );
+      index.setAlbumMembership(
+        album.id,
+        action.assetIds,
+        adding ? "add" : "remove",
+        revisions(res).get(album.id) ?? album.revision + 1,
+      );
+      return { status: "applied", assets };
+    }
+
+    // ---- folders: catalog relationships only; nothing is created or moved on any disk ----
+    case "createFolder": {
+      if (action.parentId && !index.hasFolder(action.parentId)) throw missing("parent folder");
+      const id = `folder-${action.operationId}`;
+      await send(
+        [
+          {
+            type: "create_folder",
+            targetId: id,
+            payload: { name: action.name, parentId: action.parentId },
+          },
+        ],
+        action.operationId,
+      );
+      index.addFolder({ id, name: action.name, parentId: action.parentId, revision: 1 });
+      return {
+        status: "applied",
+        assets: [],
+        folder: {
+          id,
+          name: action.name,
+          parentId: action.parentId,
+          systemKind: null,
+          sortOrder: 0,
+          assetCount: 0,
+        },
+      };
+    }
+
+    case "renameFolder": {
+      const folder = index.folder(action.folderId);
+      if (!folder) throw missing("folder");
+      const res = await send(
+        [
+          {
+            type: "rename_folder",
+            targetId: folder.id,
+            baseRevision: folder.revision,
+            payload: { name: action.name },
+          },
+        ],
+        action.operationId,
+      );
+      index.patchFolder(folder.id, {
+        name: action.name,
+        revision: revisions(res).get(folder.id) ?? folder.revision + 1,
+      });
+      return { status: "applied", assets: [] };
+    }
+
+    case "moveFolder": {
+      const folder = index.folder(action.folderId);
+      if (!folder) throw missing("folder");
+      if (action.parentId && !index.hasFolder(action.parentId)) throw missing("destination folder");
+      if (action.parentId && index.isWithinFolder(folder.id, action.parentId)) {
+        throw new ActionError(
+          400,
+          "invalid_folder",
+          "A folder cannot be moved into itself or one of its own subfolders.",
+        );
+      }
+      const res = await send(
+        [
+          {
+            type: "move_folder",
+            targetId: folder.id,
+            baseRevision: folder.revision,
+            payload: { parentId: action.parentId },
+          },
+        ],
+        action.operationId,
+      );
+      index.patchFolder(folder.id, {
+        parentId: action.parentId,
+        revision: revisions(res).get(folder.id) ?? folder.revision + 1,
+      });
+      return { status: "applied", assets: [] };
     }
   }
 }

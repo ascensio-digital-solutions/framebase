@@ -112,9 +112,19 @@ export function createFakeCloud(options: { pageSize?: number; entities?: Bootstr
     add_tag_to_assets: "assets.metadata.write",
     remove_tag_from_assets: "assets.metadata.write",
     move_asset: "assets.organize",
+    create_album: "assets.organize",
+    rename_album: "assets.organize",
+    delete_album: "assets.organize",
+    add_assets_to_album: "assets.organize",
+    remove_assets_from_album: "assets.organize",
+    create_folder: "assets.organize",
+    rename_folder: "assets.organize",
+    move_folder: "assets.organize",
     trash_asset: "trash.write",
     restore_asset: "trash.write",
   };
+  const entityOf = (t: string) =>
+    /tag/.test(t) ? "tag" : /album/.test(t) ? "album" : /folder/.test(t) ? "folder" : "asset";
   let seq = 0;
 
   const json = (body: unknown, status = 200) =>
@@ -231,14 +241,27 @@ export function createFakeCloud(options: { pageSize?: number; entities?: Bootstr
         entities.find((e) => e.entityType === type && e.entityId === id);
       // Validate everything first (all-or-nothing, like the real Worker).
       for (const o of operations) {
-        if (o.type === "create_tag") {
-          if (find("tag", o.targetId)) return err(409, "STALE_REVISION", "Tag already exists");
+        if (o.type === "create_tag" || o.type === "create_album" || o.type === "create_folder") {
+          const kind = entityOf(o.type);
+          if (find(kind, o.targetId)) return err(409, "STALE_REVISION", `${kind} already exists`);
+          if (
+            o.type === "create_folder" &&
+            o.payload.parentId &&
+            !find("folder", String(o.payload.parentId))
+          )
+            return err(422, "INVALID_MUTATION", "Parent folder is invalid");
           continue;
         }
-        const type = /tag/.test(o.type) ? "tag" : "asset";
+        const type = entityOf(o.type);
         const e = find(type, o.targetId);
         if (!e || e.revision !== o.baseRevision)
           return err(409, "STALE_REVISION", `${type} has changed`);
+        if (
+          o.type === "move_folder" &&
+          o.payload.parentId &&
+          !find("folder", String(o.payload.parentId))
+        )
+          return err(422, "INVALID_MUTATION", "Folder parent is invalid");
         if (o.type === "move_asset" && !find("folder", String(o.payload.folderId)))
           return err(422, "INVALID_MUTATION", "Destination folder is invalid");
         if (o.type === "trash_asset" && e.payload.trash)
@@ -247,21 +270,51 @@ export function createFakeCloud(options: { pageSize?: number; entities?: Bootstr
           return err(409, "STALE_REVISION", "Asset is not in Trash");
       }
       const results = operations.map((o) => {
-        if (o.type === "create_tag") {
+        if (o.type === "create_tag" || o.type === "create_album" || o.type === "create_folder") {
+          const kind = entityOf(o.type);
           entities.push({
-            entityType: "tag",
+            entityType: kind,
             entityId: o.targetId,
             revision: 1,
-            payload: { id: o.targetId, name: o.payload.name, assetIds: [] },
+            payload:
+              kind === "folder"
+                ? {
+                    id: o.targetId,
+                    name: o.payload.name,
+                    parentId: o.payload.parentId ?? null,
+                    systemKind: null,
+                    sortOrder: 0,
+                  }
+                : { id: o.targetId, name: o.payload.name, assetIds: [] },
           });
           state.mutations.push(o.type);
-          return { entityType: "tag", targetId: o.targetId, operation: o.type, revision: 1 };
+          return { entityType: kind, targetId: o.targetId, operation: o.type, revision: 1 };
         }
-        const type = /tag/.test(o.type) ? "tag" : "asset";
+        if (o.type === "delete_album") {
+          entities.splice(
+            entities.findIndex((x) => x.entityType === "album" && x.entityId === o.targetId),
+            1,
+          );
+          state.mutations.push(o.type);
+          return {
+            entityType: "album",
+            targetId: o.targetId,
+            operation: o.type,
+            revision: o.baseRevision! + 1,
+          };
+        }
+        const type = entityOf(o.type);
         const e = find(type, o.targetId) as (typeof entities)[number];
         const p = e.payload as Record<string, unknown>;
         const ids = (p.assetIds as string[] | undefined) ?? [];
         if (o.type === "rename_asset") p.displayName = String(o.payload.displayName).trim();
+        if (o.type === "rename_album" || o.type === "rename_folder")
+          p.name = String(o.payload.name).trim();
+        if (o.type === "move_folder") p.parentId = o.payload.parentId ?? null;
+        if (o.type === "add_assets_to_album")
+          p.assetIds = [...new Set([...ids, ...(o.payload.assetIds as string[])])];
+        if (o.type === "remove_assets_from_album")
+          p.assetIds = ids.filter((x) => !(o.payload.assetIds as string[]).includes(x));
         if (o.type === "update_favorite") p.favorite = o.payload.favorite;
         if (o.type === "update_rating") p.rating = o.payload.rating;
         if (o.type === "move_asset") p.folderId = o.payload.folderId;

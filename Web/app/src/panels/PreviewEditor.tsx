@@ -52,7 +52,7 @@ export function PreviewEditor({ asset }: { asset: LibraryAsset }) {
           aria-pressed={asset.favorite}
           disabled={editing}
           onClick={() =>
-            void act({ action: "favorite", assetId: asset.id, favorite: !asset.favorite })
+            void act({ action: "favorite", assetIds: [asset.id], favorite: !asset.favorite })
           }
         >
           {asset.favorite ? "★ Favorite" : "☆ Favorite"}
@@ -70,7 +70,7 @@ export function PreviewEditor({ asset }: { asset: LibraryAsset }) {
               onClick={() =>
                 void act({
                   action: "rating",
-                  assetId: asset.id,
+                  assetIds: [asset.id],
                   rating: n === asset.rating ? 0 : n,
                 })
               }

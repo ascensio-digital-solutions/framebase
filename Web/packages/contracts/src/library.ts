@@ -83,6 +83,7 @@ export type LibrarySummary = z.infer<typeof librarySummarySchema>;
  */
 const operationId = z.uuid();
 const assetIds = z.array(id).min(1).max(200);
+const displayName = z.string().trim().min(1).max(160);
 
 export const libraryActionSchema = z.discriminatedUnion("action", [
   z.object({
@@ -91,11 +92,11 @@ export const libraryActionSchema = z.discriminatedUnion("action", [
     assetId: id,
     displayName: z.string().trim().min(1).max(160),
   }),
-  z.object({ action: z.literal("favorite"), operationId, assetId: id, favorite: z.boolean() }),
+  z.object({ action: z.literal("favorite"), operationId, assetIds, favorite: z.boolean() }),
   z.object({
     action: z.literal("rating"),
     operationId,
-    assetId: id,
+    assetIds,
     rating: z.number().int().min(0).max(5),
   }),
   z.object({ action: z.literal("move"), operationId, assetIds, folderId: id }),
@@ -108,6 +109,21 @@ export const libraryActionSchema = z.discriminatedUnion("action", [
     tagId: id,
     mode: z.enum(["add", "remove"]),
   }),
+  // Albums: removing a photo from an album, or deleting an album, never deletes the photo.
+  z.object({ action: z.literal("createAlbum"), operationId, name: displayName }),
+  z.object({ action: z.literal("renameAlbum"), operationId, albumId: id, name: displayName }),
+  z.object({ action: z.literal("deleteAlbum"), operationId, albumId: id }),
+  z.object({ action: z.literal("albumAdd"), operationId, albumId: id, assetIds }),
+  z.object({ action: z.literal("albumRemove"), operationId, albumId: id, assetIds }),
+  // Folders are catalog relationships, never filesystem folders. There is no folder delete.
+  z.object({
+    action: z.literal("createFolder"),
+    operationId,
+    name: displayName,
+    parentId: id.nullable(),
+  }),
+  z.object({ action: z.literal("renameFolder"), operationId, folderId: id, name: displayName }),
+  z.object({ action: z.literal("moveFolder"), operationId, folderId: id, parentId: id.nullable() }),
   z.object({
     action: z.literal("createTag"),
     operationId,
@@ -125,8 +141,11 @@ export const libraryActionResultSchema = z.object({
   status: z.literal("applied"),
   /** The edited assets as they are now. */
   assets: z.array(libraryAssetSchema),
-  /** Present after `createTag`. */
+  /** Present after `createTag` or `createAlbum`. */
   tag: libraryNamedCountSchema.optional(),
+  album: libraryNamedCountSchema.optional(),
+  /** Present after `createFolder`. */
+  folder: libraryFolderSchema.optional(),
 });
 
 export type LibraryAction = z.infer<typeof libraryActionSchema>;

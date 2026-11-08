@@ -79,7 +79,7 @@ describe("several libraries", () => {
       body: JSON.stringify({
         operationId: crypto.randomUUID(),
         action: "favorite",
-        assetId: "a1",
+        assetIds: ["a1"],
         favorite: true,
       }),
     });

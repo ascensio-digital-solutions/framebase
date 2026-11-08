@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useLibrary } from "../library/LibraryContext";
-import { ConfirmTrashDialog, MoveDialog, TagDialog } from "./Dialogs";
+import { AlbumDialog, ConfirmTrashDialog, MoveDialog, RateDialog, TagDialog } from "./Dialogs";
 
-type Dialog = "trash" | "move" | "tag" | null;
+type Dialog = "trash" | "move" | "tag" | "rate" | "album" | null;
 
 /** Applies a tag by name, creating it first when it does not exist yet. */
 export function useTagAction() {
@@ -39,8 +39,29 @@ export function ActionBar() {
   if (!canEdit) return null;
 
   const ids = targets.map((a) => a.id);
+  const none = editing || ids.length === 0;
   const close = () => setDialog(null);
   const plural = (n: number) => `${n} item${n === 1 ? "" : "s"}`;
+  const allFavorite = targets.length > 0 && targets.every((a) => a.favorite);
+
+  const addToAlbum = async (target: { albumId: string } | { newName: string }) => {
+    let albumId = "albumId" in target ? target.albumId : undefined;
+    if (!albumId) {
+      const created = await act({
+        action: "createAlbum",
+        name: (target as { newName: string }).newName,
+      });
+      albumId = created?.album?.id;
+      if (!albumId) return;
+    }
+    await act(
+      { action: "albumAdd", albumId, assetIds: ids },
+      {
+        label: `Added ${plural(ids.length)} to the album`,
+        undo: { action: "albumRemove", albumId, assetIds: ids },
+      },
+    );
+  };
 
   return (
     <div className="action-bar" role="toolbar" aria-label="Edit selection">
@@ -65,7 +86,7 @@ export function ActionBar() {
       {inTrash ? (
         <button
           type="button"
-          disabled={editing || ids.length === 0}
+          disabled={none}
           onClick={() =>
             void act(
               { action: "restore", assetIds: ids },
@@ -82,22 +103,45 @@ export function ActionBar() {
         <>
           <button
             type="button"
-            disabled={editing || ids.length === 0}
-            onClick={() => setDialog("move")}
+            disabled={none}
+            aria-pressed={allFavorite}
+            onClick={() => void act({ action: "favorite", assetIds: ids, favorite: !allFavorite })}
           >
+            {allFavorite ? "★ Unfavorite" : "☆ Favorite"}
+          </button>
+          <button type="button" disabled={none} onClick={() => setDialog("rate")}>
+            Rate…
+          </button>
+          <button type="button" disabled={none} onClick={() => setDialog("move")}>
             Move…
           </button>
-          <button
-            type="button"
-            disabled={editing || ids.length === 0}
-            onClick={() => setDialog("tag")}
-          >
+          <button type="button" disabled={none} onClick={() => setDialog("album")}>
+            Album…
+          </button>
+          {filter.albumId && (
+            <button
+              type="button"
+              disabled={none}
+              onClick={() =>
+                void act(
+                  { action: "albumRemove", albumId: filter.albumId as string, assetIds: ids },
+                  {
+                    label: `Removed ${plural(ids.length)} from this album`,
+                    undo: { action: "albumAdd", albumId: filter.albumId as string, assetIds: ids },
+                  },
+                )
+              }
+            >
+              Remove from album
+            </button>
+          )}
+          <button type="button" disabled={none} onClick={() => setDialog("tag")}>
             Tag…
           </button>
           <button
             type="button"
             className="danger"
-            disabled={editing || ids.length === 0}
+            disabled={none}
             onClick={() => setDialog("trash")}
           >
             Move to Trash
@@ -142,6 +186,31 @@ export function ActionBar() {
           busy={editing}
           onClose={close}
           onConfirm={(name, mode) => void tag(ids, name, mode).then(close)}
+        />
+      )}
+      {dialog === "rate" && (
+        <RateDialog
+          count={ids.length}
+          busy={editing}
+          onClose={close}
+          onConfirm={(rating) =>
+            void act(
+              { action: "rating", assetIds: ids, rating },
+              {
+                label: rating
+                  ? `Rated ${plural(ids.length)}`
+                  : `Cleared the rating on ${plural(ids.length)}`,
+              },
+            ).then(close)
+          }
+        />
+      )}
+      {dialog === "album" && (
+        <AlbumDialog
+          count={ids.length}
+          busy={editing}
+          onClose={close}
+          onConfirm={(target) => void addToAlbum(target).then(close)}
         />
       )}
     </div>

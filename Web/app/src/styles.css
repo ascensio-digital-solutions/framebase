@@ -652,3 +652,20 @@ input:not([type="checkbox"]):not([type="radio"]) {
   font: inherit;
   font-size: 13px;
 }
+
+.tree-heading--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tree-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 4px 8px;
+}
+.stars--large button {
+  font-size: 30px;
+  padding: 0 6px;
+  color: var(--warn);
+}

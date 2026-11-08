@@ -39,7 +39,7 @@ function setup(
 describe("editing: safety gates", () => {
   it("is off by default and never asks the Worker for write scopes", async () => {
     const { act, cloud, list } = setup({});
-    const res = await act({ action: "favorite", assetId: "a1", favorite: true });
+    const res = await act({ action: "favorite", assetIds: ["a1"], favorite: true });
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ error: "writes_disabled" });
     await list(); // forces enrollment
@@ -48,7 +48,7 @@ describe("editing: safety gates", () => {
 
   it("requests exactly the write scopes it needs when enabled, and never a purge scope", async () => {
     const { act, cloud } = setup();
-    await act({ action: "favorite", assetId: "a1", favorite: true });
+    await act({ action: "favorite", assetIds: ["a1"], favorite: true });
     expect(cloud.state.enrolledScopes[0]).toEqual([
       "library.read",
       "assets.metadata.write",
@@ -63,7 +63,7 @@ describe("editing: safety gates", () => {
     expect(
       (
         await act(
-          { action: "favorite", assetId: "a1", favorite: true },
+          { action: "favorite", assetIds: ["a1"], favorite: true },
           { "sec-fetch-site": "cross-site" },
         )
       ).status,
@@ -71,7 +71,7 @@ describe("editing: safety gates", () => {
     expect(
       (
         await act(
-          { action: "favorite", assetId: "a1", favorite: true },
+          { action: "favorite", assetIds: ["a1"], favorite: true },
           { origin: "https://evil.example", host: "app.example" },
         )
       ).status,
@@ -83,7 +83,7 @@ describe("editing: safety gates", () => {
     });
     expect(text.status).toBe(415);
     expect((await act({ action: "purge", assetIds: ["a1"] })).status).toBe(400); // no such action
-    expect((await act({ action: "rating", assetId: "a1", rating: 9 })).status).toBe(400);
+    expect((await act({ action: "rating", assetIds: ["a1"], rating: 9 })).status).toBe(400);
     expect((await act({ action: "createTag", name: "Not A Tag" })).status).toBe(400);
     expect(cloud.state.mutations).toEqual([]);
   });
@@ -91,7 +91,7 @@ describe("editing: safety gates", () => {
   it("accepts a same-origin browser request", async () => {
     const { act } = setup();
     const res = await act(
-      { action: "favorite", assetId: "a1", favorite: true },
+      { action: "favorite", assetIds: ["a1"], favorite: true },
       { origin: "https://app.example", host: "app.example" },
     );
     expect(res.status).toBe(200);
@@ -109,8 +109,8 @@ describe("editing: metadata", () => {
       revision: 2,
     });
     // A second edit uses the new revision, so it is accepted rather than rejected as stale.
-    expect((await act({ action: "favorite", assetId: "a1", favorite: true })).status).toBe(200);
-    expect((await act({ action: "rating", assetId: "a1", rating: 4 })).status).toBe(200);
+    expect((await act({ action: "favorite", assetIds: ["a1"], favorite: true })).status).toBe(200);
+    expect((await act({ action: "rating", assetIds: ["a1"], rating: 4 })).status).toBe(200);
     const asset = (await list("q=aaa")).assets[0];
     expect(asset).toMatchObject({ favorite: true, rating: 4, revision: 4 });
     expect(cloud.state.mutations).toEqual(["rename_asset", "update_favorite", "update_rating"]);
@@ -215,7 +215,7 @@ describe("editing: reliability", () => {
     const body = JSON.stringify({
       operationId: uuid(),
       action: "favorite",
-      assetId: "a1",
+      assetIds: ["a1"],
       favorite: true,
     });
     const send = () =>
@@ -280,7 +280,7 @@ describe("editing: reliability", () => {
       body: JSON.stringify({
         operationId: uuid(),
         action: "favorite",
-        assetId: "a1",
+        assetIds: ["a1"],
         favorite: true,
       }),
     });

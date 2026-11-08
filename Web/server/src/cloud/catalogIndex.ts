@@ -54,7 +54,7 @@ export interface AssetFilter {
   limit?: number;
 }
 
-type Folder = z.infer<typeof folderPayload>;
+type Folder = z.infer<typeof folderPayload> & { revision: number };
 type Member = z.infer<typeof membershipPayload> & { revision: number };
 type AssetPatch = Partial<
   Pick<LibraryAsset, "displayName" | "favorite" | "rating" | "folderId" | "revision">
@@ -93,7 +93,7 @@ export class CatalogIndex {
       switch (entity.entityType) {
         case "folder": {
           const p = folderPayload.safeParse(entity.payload);
-          if (p.success) this.#folders.push(p.data);
+          if (p.success) this.#folders.push({ ...p.data, revision: entity.revision });
           else this.skipped++;
           break;
         }
@@ -152,6 +152,12 @@ export class CatalogIndex {
         this.#assets.set(a.id, dto);
       }
     }
+    this.#rebuildChildren();
+    this.#reindex();
+  }
+
+  #rebuildChildren() {
+    this.#childrenByFolder.clear();
     for (const folder of this.#folders) {
       if (folder.parentId) {
         const kids = this.#childrenByFolder.get(folder.parentId) ?? [];
@@ -159,7 +165,6 @@ export class CatalogIndex {
         this.#childrenByFolder.set(folder.parentId, kids);
       }
     }
-    this.#reindex();
   }
 
   /** Recomputes the sort orders and per-folder counts after any change to the asset maps. */
@@ -283,6 +288,71 @@ export class CatalogIndex {
       out.push(next);
     }
     return out;
+  }
+
+  // --- folders and albums ----------------------------------------------------------------------
+
+  folder(id: string) {
+    const f = this.#folders.find((x) => x.id === id);
+    return f && { id: f.id, name: f.name, parentId: f.parentId, revision: f.revision };
+  }
+
+  /** True when `candidateId` is `folderId` itself or sits beneath it (so moving `folderId` there would be a cycle). */
+  isWithinFolder(folderId: string, candidateId: string): boolean {
+    return this.#subtree(folderId).has(candidateId);
+  }
+
+  addFolder(f: { id: string; name: string; parentId: string | null; revision: number }) {
+    this.#folders.push({ ...f, systemKind: null, sortOrder: 0 });
+    this.#rebuildChildren();
+    this.#reindex();
+  }
+
+  patchFolder(id: string, patch: { name?: string; parentId?: string | null; revision: number }) {
+    const f = this.#folders.find((x) => x.id === id);
+    if (!f) return;
+    if (patch.name !== undefined) f.name = patch.name;
+    if (patch.parentId !== undefined) f.parentId = patch.parentId;
+    f.revision = patch.revision;
+    this.#rebuildChildren();
+    this.#reindex();
+  }
+
+  album(id: string) {
+    const a = this.#albums.find((x) => x.id === id);
+    return a && { id: a.id, name: a.name, assetCount: this.#liveCount(a), revision: a.revision };
+  }
+
+  addAlbum(a: { id: string; name: string; revision: number }) {
+    this.#albums.push({ id: a.id, name: a.name, assetIds: [], revision: a.revision });
+  }
+
+  patchAlbum(id: string, patch: { name?: string; revision: number }) {
+    const a = this.#albums.find((x) => x.id === id);
+    if (!a) return;
+    if (patch.name !== undefined) a.name = patch.name;
+    a.revision = patch.revision;
+  }
+
+  deleteAlbum(id: string) {
+    const i = this.#albums.findIndex((x) => x.id === id);
+    if (i !== -1) this.#albums.splice(i, 1);
+  }
+
+  setAlbumMembership(
+    albumId: string,
+    assetIds: string[],
+    mode: "add" | "remove",
+    revision: number,
+  ) {
+    const album = this.#albums.find((x) => x.id === albumId);
+    if (!album) return;
+    const ids = new Set(assetIds);
+    album.revision = revision;
+    album.assetIds =
+      mode === "add"
+        ? [...new Set([...album.assetIds, ...assetIds])]
+        : album.assetIds.filter((id) => !ids.has(id));
   }
 
   // --- views -----------------------------------------------------------------------------------
