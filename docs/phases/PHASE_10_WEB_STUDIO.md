@@ -81,6 +81,15 @@ The macOS `ci.yml` ignores `Web/**` and `.devcontainer/**` because macOS minutes
 
 Observed 2026-11-07 (read-only): `framebase-api-dev` and `framebase-api-prod` Workers are deployed and healthy, `hsc-media-delivery` serves `assets.hairsolutions.co`, and `framebase-personal-api-prod` is not deployed. Whether `framebase-catalog-prod` actually holds the 8,252 HSC assets was not verified, because the available narrow token cannot read D1.
 
+### Milestone 2b: editing the library (2026-11-08, requested by Vincent)
+
+- [x] Edits from the web studio: rename, favorite, rating, tags (add, remove, create), move, **Move to Trash** and **Restore**, single and bulk (up to 200 items per action, split to the Worker's 25-operation limit). UI: multi-select with an action bar, confirm dialog plus **Undo** for Trash, Move and Tag dialogs, an editor in the preview panel, and a Trash view in the Explorer.
+- [x] Safety: edits go through the Worker's audited mutation pipeline (`/v1/mutations`), carry the item's current revision (an edit made elsewhere is rejected with 409, never overwritten), and use an idempotency key (a retried edit is applied once). The server accepts only same-origin JSON, logs the signed-in user for each edit, and requests only `library.read`, `assets.metadata.write`, `assets.organize` and `trash.write` (read-only unless `LIBRARY_WRITES_ENABLED=true`). Tag names must be lowercase `namespace:value` and display names at most 160 characters, as the Worker requires.
+- [x] **Delete = Trash, never permanent.** The Worker has no purge: `purge.approve` is deliberately not grantable and nothing in the web studio requests it. Trash keeps the prior folder, albums and tags so Restore puts everything back exactly. Permanent deletion (emptying Trash, removing originals from R2) needs its own design, an explicit approval flow and a Worker change. It is not built.
+- [x] Verified: 41 server tests (fake Worker with revision, scope and idempotency behaviour), UI exercised in a browser against synthetic data (trash, undo, favorite, rating, rename all applied), and a reversible round trip on the **real prod Worker** with a temporary write-scoped device that was revoked afterwards: favorite on/off, Trash, Restore on one asset left it identical to before (only the revision counter moved).
+- [x] Deployed: staging revision `framebase-web-staging--0000007` (commit `84579ee0`) with `LIBRARY_WRITES_ENABLED=true`, connected to the prod Worker. The signed-in UI was not exercised on staging; unauthenticated requests get 401.
+- [ ] Not built yet: bulk favorite/rating, album membership edits, folder create/rename/move, upload/import, and the permanent-delete flow above. The Personal library has no API Worker deployed, so it cannot be edited from here yet.
+
 ### Milestone 0 questions that block later work
 
 - Where does the authoritative Hair Concierge corpus and live index reside (Google Vertex RAG today)? Do not build a second migration until this is answered.
