@@ -32,7 +32,8 @@ export function ExplorerPanel() {
   const { phase, message, summary, structure, filter, scopeTo, refresh } = useLibrary();
   const tree = useMemo(() => buildTree(structure?.folders ?? []), [structure]);
 
-  if (phase === "loading") return <p className="muted">Loading library…</p>;
+  if (phase === "loading")
+    return <p className="muted">Loading library… the first load can take up to a minute.</p>;
   if (phase !== "ready" || !structure) return <p className="muted">{message}</p>;
 
   const allActive = !filter.folderId && !filter.albumId && !filter.tagId;

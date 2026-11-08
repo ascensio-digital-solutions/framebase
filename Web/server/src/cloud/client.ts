@@ -24,6 +24,8 @@ export interface CloudClientOptions {
   scopes?: string[];
   fetchImpl?: typeof fetch;
   now?: () => number;
+  /** Per-request limit so a stalled Worker cannot hang the server. Default 60 s. */
+  timeoutMs?: number;
 }
 
 export interface BootstrapEntity {
@@ -59,6 +61,7 @@ export class CloudClient {
   constructor(options: CloudClientOptions) {
     this.#opts = {
       scopes: ["library.read"],
+      timeoutMs: 60_000,
       fetchImpl: fetch,
       now: Date.now,
       ...options,
@@ -75,6 +78,7 @@ export class CloudClient {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(this.#opts.timeoutMs),
     });
   }
 
@@ -138,6 +142,7 @@ export class CloudClient {
     const send = async (token: string) =>
       this.#opts.fetchImpl(`${this.#opts.baseUrl}${path}`, {
         headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(this.#opts.timeoutMs),
       });
     let res = await send(await this.#token());
     if (res.status === 401) {

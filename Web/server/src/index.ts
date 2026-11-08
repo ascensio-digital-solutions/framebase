@@ -3,7 +3,7 @@ import { createApp } from "./app";
 import { loadEnv } from "./env";
 
 const env = loadEnv();
-const server = serve({ fetch: createApp(env).fetch, port: env.PORT }, (info) => {
+const server = serve({ fetch: createApp(env, { warmUp: true }).fetch, port: env.PORT }, (info) => {
   console.log(`framebase-web listening on :${info.port} (${env.NODE_ENV})`);
 });
 

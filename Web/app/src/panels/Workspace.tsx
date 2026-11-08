@@ -66,7 +66,8 @@ function Preview() {
 
 function Collection({ view }: { view: ViewId }) {
   const { phase, message, assets, total, loadingAssets } = useLibrary();
-  if (phase === "loading") return <p className="muted">Loading library…</p>;
+  if (phase === "loading")
+    return <p className="muted">Loading library… the first load can take up to a minute.</p>;
   if (phase !== "ready") return <p className="muted">{message}</p>;
   if (view === "board")
     return (

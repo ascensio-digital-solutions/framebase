@@ -12,9 +12,22 @@ const idParam = (value: string | undefined) => (value && ID.test(value) ? value 
  * Read-only library API: catalog structure, paged asset lists and image derivatives, all fetched
  * server-side from the Framebase Cloudflare API.
  */
-export function createLibraryRoutes(env: Env, cloud: CloudClient | undefined) {
+export function createLibraryRoutes(
+  env: Env,
+  cloud: CloudClient | undefined,
+  options: { warmUp?: boolean } = {},
+) {
   const app = new Hono();
   const store = cloud ? new CatalogStore({ load: () => cloud.fetchCatalog() }) : undefined;
+
+  // The first catalog load reads every table once per page and can take a minute on a large library,
+  // so start it at boot instead of making the first visitor wait. Skipped where access is not allowed.
+  const allowed = env.NODE_ENV !== "production" || env.LIBRARY_ACCESS_PROTECTED;
+  if (options.warmUp && store && allowed) {
+    store
+      .get()
+      .catch(() => console.error("catalog warm-up failed; it will retry on first request"));
+  }
 
   // These routes serve private media and have no sign-in of their own.
   app.use("*", async (c, next) => {

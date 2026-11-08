@@ -11,6 +11,8 @@ const SERVICE = "framebase-web";
 export interface AppDeps {
   /** Injected in tests. Defaults to a client built from the environment, if configured. */
   cloud?: CloudClient;
+  /** Load the catalog in the background at startup. Enabled by the real server, not by tests. */
+  warmUp?: boolean;
 }
 
 /**
@@ -45,7 +47,7 @@ export function createApp(env: Env, deps: AppDeps = {}) {
     }),
   );
 
-  app.route("/v1/library", createLibraryRoutes(env, cloud));
+  app.route("/v1/library", createLibraryRoutes(env, cloud, { warmUp: deps.warmUp }));
 
   // Validates the typed command envelope. Execution lands with the connected-agents milestone,
   // so a valid envelope is acknowledged as not implemented rather than pretending to apply.

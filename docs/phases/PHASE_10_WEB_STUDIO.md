@@ -63,7 +63,9 @@ The macOS `ci.yml` ignores `Web/**` and `.devcontainer/**` because macOS minutes
 - [x] Server-side Cloudflare client: ephemeral-key device enrollment (`library.read` only), session refresh by repeating the signed challenge, paged catalog bootstrap, derivative proxy.
 - [x] In-memory catalog index with folder roll-up counts, album/tag/search filters, cursor paging, trash excluded. Tested against a fake Worker that verifies real ECDSA signatures.
 - [x] Explorer tree, Grid/List views with real thumbnails, preview panel (checked visually against synthetic data only).
-- [ ] Live connection to a Framebase Worker. Needs: the target Worker URL, its pairing secret as a Codespaces secret, and approval to enroll a device (one `devices` row written).
+- [x] Live connection to the **dev** Worker (2026-11-08, `npm run live:check`, run by Vincent): enrollment with a real signature worked and registered device `framebase-web-studio` (`library.read`). The dev catalog is synthetic test data (19,977 assets in "Phase 2/3/4 fixture" folders), loaded in 58 s because every bootstrap page re-reads all tables. Thumbnails returned HTTP 503 (the dev Worker has no image-transformation service configured). The web server now warms the catalog at boot and has a 60 s request timeout.
+- [ ] Live connection to the **prod** Worker, where the real HSC media is expected. Needs: the prod pairing secret (`~/.env` only has `FRAMEBASE_API_DEV_ENROLLMENT_SECRET`), explicit approval to enroll a device on production, and a check that the prod catalog actually holds the assets and that its Worker has image transformations.
+- [ ] Faster catalog loading: incremental sync from `/v1/changes` or a lighter listing endpoint, instead of re-reading every table per page.
 - [ ] Authentication in front of the web server before any deployment (Cloudflare Access or Entra). Library routes are disabled in production until `LIBRARY_ACCESS_PROTECTED=true`.
 - [ ] Writes (move, tag, trash, upload) and incremental sync via `/v1/changes`. Reads only for now.
 
