@@ -14,6 +14,7 @@
     "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:server\" \"npm:dev:app\"",
     "dev:server": "npm run dev -w @framebase/web-server",
     "dev:app": "npm run dev -w @framebase/web-app",
+    "live:check": "npm run live:check -w @framebase/web-server",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

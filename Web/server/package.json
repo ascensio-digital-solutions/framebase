@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=../.env.local src/index.ts",
+    "live:check": "tsx --env-file-if-exists=../.env.local src/liveCheck.ts",
     "build": "tsup",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
