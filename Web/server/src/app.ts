@@ -48,6 +48,7 @@ export function createApp(env: Env, deps: AppDeps = {}) {
         cloudCatalog: Boolean(cloud),
         database: Boolean(env.DATABASE_URL),
       },
+      library: { writes: Boolean(cloud) && env.LIBRARY_WRITES_ENABLED },
     }),
   );
 

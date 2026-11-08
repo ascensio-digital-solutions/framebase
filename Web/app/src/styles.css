@@ -477,3 +477,170 @@ textarea:focus-visible {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Editing: selection, action bar, dialogs, editor, notices */
+.tile-wrap {
+  position: relative;
+}
+.tile-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.tile.is-checked {
+  outline: 2px solid var(--accent);
+  background: var(--surface);
+}
+.tile-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  min-height: 40px;
+}
+.action-bar .spacer {
+  flex: 1;
+}
+.action-bar button:not(.link-button),
+.modal-actions button,
+.editor button.toggle {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.action-bar button:disabled,
+.modal-actions button:disabled,
+.editor button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button.danger {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+.modal-actions button.danger:not(:disabled) {
+  background: var(--bad);
+  color: var(--bg);
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.notice--error {
+  color: var(--bad);
+  border-left: 3px solid var(--bad);
+}
+.notice--info {
+  border-left: 3px solid var(--ok);
+}
+.notice span {
+  flex: 1;
+}
+
+.modal {
+  width: min(440px, 92vw);
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.modal h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.radio-row {
+  display: flex;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+}
+input:not([type="checkbox"]):not([type="radio"]) {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.editor-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.editor button.toggle.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.stars button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.stars button.is-on {
+  color: var(--warn);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+}
+.chip button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+}

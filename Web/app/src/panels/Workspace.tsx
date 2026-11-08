@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { imageUrl } from "../library/api";
 import { folderPath, formatBytes } from "../library/folderTree";
 import { useLibrary } from "../library/LibraryContext";
+import { ActionBar } from "./ActionBar";
 import { GridView, ListView } from "./AssetViews";
+import { PreviewEditor } from "./PreviewEditor";
 
 const VIEWS = [
   { id: "grid", label: "Grid" },
@@ -33,12 +35,41 @@ function SearchBox() {
   );
 }
 
+function NoticeBar() {
+  const { notice, dismissNotice } = useLibrary();
+  if (!notice) return null;
+  return (
+    <div
+      className={`notice notice--${notice.kind}`}
+      role={notice.kind === "error" ? "alert" : "status"}
+    >
+      <span>{notice.text}</span>
+      {notice.undo && (
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => {
+            notice.undo?.();
+            dismissNotice();
+          }}
+        >
+          Undo
+        </button>
+      )}
+      <button type="button" className="icon-button" aria-label="Dismiss" onClick={dismissNotice}>
+        ×
+      </button>
+    </div>
+  );
+}
+
 function Preview() {
-  const { selected, structure } = useLibrary();
+  const { selected, structure, canEdit } = useLibrary();
   if (!selected)
     return (
       <p className="muted">Select an item to open it here. Generated results appear here too.</p>
     );
+  const editable = canEdit && !selected.trashedAt;
   return (
     <div className="preview-body">
       <img
@@ -46,26 +77,46 @@ function Preview() {
         src={imageUrl(selected.id, "preview-1600")}
         alt={selected.displayName}
       />
-      <dl className="meta">
-        <dt>Name</dt>
-        <dd>{selected.displayName}</dd>
-        <dt>Folder</dt>
-        <dd>{folderPath(structure?.folders ?? [], selected.folderId)}</dd>
-        <dt>Type</dt>
-        <dd>
-          {selected.mediaType} · {formatBytes(selected.byteSize)}
-        </dd>
-        <dt>Added</dt>
-        <dd>{new Date(selected.createdAt).toLocaleDateString()}</dd>
-        <dt>Tags</dt>
-        <dd>{selected.tags.length ? selected.tags.join(", ") : "None"}</dd>
-      </dl>
+      <div>
+        {editable && <PreviewEditor asset={selected} />}
+        <dl className="meta">
+          {!editable && (
+            <>
+              <dt>Name</dt>
+              <dd>{selected.displayName}</dd>
+            </>
+          )}
+          {selected.trashedAt ? (
+            <>
+              <dt>Status</dt>
+              <dd>In Trash since {new Date(selected.trashedAt).toLocaleDateString()}</dd>
+            </>
+          ) : (
+            <>
+              <dt>Folder</dt>
+              <dd>{folderPath(structure?.folders ?? [], selected.folderId)}</dd>
+            </>
+          )}
+          <dt>Type</dt>
+          <dd>
+            {selected.mediaType} · {formatBytes(selected.byteSize)}
+          </dd>
+          <dt>Added</dt>
+          <dd>{new Date(selected.createdAt).toLocaleDateString()}</dd>
+          {!editable && (
+            <>
+              <dt>Tags</dt>
+              <dd>{selected.tags.length ? selected.tags.join(", ") : "None"}</dd>
+            </>
+          )}
+        </dl>
+      </div>
     </div>
   );
 }
 
 function Collection({ view }: { view: ViewId }) {
-  const { phase, message, assets, total, loadingAssets } = useLibrary();
+  const { phase, message, assets, total, loadingAssets, filter } = useLibrary();
   if (phase === "loading")
     return <p className="muted">Loading library… the first load can take up to a minute.</p>;
   if (phase !== "ready") return <p className="muted">{message}</p>;
@@ -74,11 +125,15 @@ function Collection({ view }: { view: ViewId }) {
       <p className="muted">The board arrives with the board milestone. Use Grid or List for now.</p>
     );
   if (!loadingAssets && assets.length === 0)
-    return <p className="muted">Nothing matches this view.</p>;
+    return (
+      <p className="muted">{filter.trashed ? "Trash is empty." : "Nothing matches this view."}</p>
+    );
   return (
     <>
       <p className="muted count">
+        {filter.trashed ? "Trash · " : ""}
         {total.toLocaleString()} item{total === 1 ? "" : "s"}
+        {filter.trashed ? ". Restore puts items back in their original folder." : ""}
       </p>
       {view === "grid" ? <GridView /> : <ListView />}
     </>
@@ -109,6 +164,8 @@ export function Workspace() {
         </div>
         <SearchBox />
       </div>
+      <ActionBar />
+      <NoticeBar />
       <div className="workspace-split">
         <section id="view-panel" role="tabpanel" aria-labelledby={`tab-${view}`} className="view">
           <Collection view={view} />

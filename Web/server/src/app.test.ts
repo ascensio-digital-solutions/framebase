@@ -37,6 +37,7 @@ describe("web API", () => {
     const text = await res.text();
     expect(JSON.parse(text)).toEqual({
       providers: { openrouter: true, cloudCatalog: false, database: true },
+      library: { writes: false }, // editing is off unless explicitly enabled and a library is connected
     });
     expect(text).not.toContain("sk-secret-value");
   });

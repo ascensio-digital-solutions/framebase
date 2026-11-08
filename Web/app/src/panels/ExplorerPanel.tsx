@@ -29,14 +29,15 @@ function FolderItem({ node, depth }: { node: FolderNode; depth: number }) {
 }
 
 export function ExplorerPanel() {
-  const { phase, message, summary, structure, filter, scopeTo, refresh } = useLibrary();
+  const { phase, message, summary, structure, filter, scopeTo, showTrash, canEdit, refresh } =
+    useLibrary();
   const tree = useMemo(() => buildTree(structure?.folders ?? []), [structure]);
 
   if (phase === "loading")
     return <p className="muted">Loading library… the first load can take up to a minute.</p>;
   if (phase !== "ready" || !structure) return <p className="muted">{message}</p>;
 
-  const allActive = !filter.folderId && !filter.albumId && !filter.tagId;
+  const allActive = !filter.folderId && !filter.albumId && !filter.tagId && !filter.trashed;
   return (
     <nav aria-label="Library">
       <button
@@ -93,6 +94,21 @@ export function ExplorerPanel() {
           ))}
         </ul>
       </details>
+
+      {(canEdit || (summary?.trashedCount ?? 0) > 0) && (
+        <>
+          <h3 className="tree-heading">Trash</h3>
+          <button
+            type="button"
+            className={`tree-item${filter.trashed ? " is-active" : ""}`}
+            aria-current={filter.trashed ? "true" : undefined}
+            onClick={showTrash}
+          >
+            <span className="tree-name">Trash</span>
+            <span className="tree-count">{(summary?.trashedCount ?? 0).toLocaleString()}</span>
+          </button>
+        </>
+      )}
 
       <p className="muted">
         Snapshot {summary ? new Date(summary.fetchedAt).toLocaleTimeString() : ""} ·{" "}

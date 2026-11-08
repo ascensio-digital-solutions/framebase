@@ -60,6 +60,9 @@ type AssetPatch = Partial<
   Pick<LibraryAsset, "displayName" | "favorite" | "rating" | "folderId" | "revision">
 >;
 
+const sortedTags = (tags: { id: string; name: string }[] = []) =>
+  [...tags].sort((a, b) => a.name.localeCompare(b.name));
+
 const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>
   a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 
@@ -116,12 +119,12 @@ export class CatalogIndex {
       }
     }
 
-    const tagNames = new Map<string, string[]>();
+    const tagsByAsset = new Map<string, { id: string; name: string }[]>();
     for (const tag of this.#tags) {
       for (const assetId of tag.assetIds) {
-        const names = tagNames.get(assetId) ?? [];
-        names.push(tag.name);
-        tagNames.set(assetId, names);
+        const list = tagsByAsset.get(assetId) ?? [];
+        list.push({ id: tag.id, name: tag.name });
+        tagsByAsset.set(assetId, list);
       }
     }
     for (const { data: a, revision } of rawAssets) {
@@ -134,7 +137,8 @@ export class CatalogIndex {
         mediaType: a.blob.mediaType,
         byteSize: Math.max(0, Math.trunc(a.blob.byteSize)),
         createdAt: a.createdAt,
-        tags: (tagNames.get(a.id) ?? []).sort(),
+        tags: sortedTags(tagsByAsset.get(a.id)).map((t) => t.name),
+        tagIds: sortedTags(tagsByAsset.get(a.id)).map((t) => t.id),
         revision,
       };
       if (a.trash) {
@@ -217,7 +221,7 @@ export class CatalogIndex {
       const current = this.#assets.get(id);
       if (!current) continue;
       this.#priorFolder.set(id, current.folderId);
-      const moved = { ...current, revision, trashedAt, scheduledPurgeAt, tags: [] };
+      const moved = { ...current, revision, trashedAt, scheduledPurgeAt, tags: [], tagIds: [] };
       this.#assets.delete(id);
       this.#trashed.set(id, moved);
       out.push(moved);
@@ -266,10 +270,15 @@ export class CatalogIndex {
     for (const id of assetIds) {
       const a = this.#assets.get(id);
       if (!a) continue;
-      const names = new Set(a.tags);
-      if (mode === "add") names.add(tag.name);
-      else names.delete(tag.name);
-      const next = { ...a, tags: [...names].sort() };
+      const kept = a.tags
+        .map((name, i) => ({ id: a.tagIds[i] as string, name }))
+        .filter((t) => t.id !== tag.id);
+      const all = mode === "add" ? [...kept, { id: tag.id, name: tag.name }] : kept;
+      const next = {
+        ...a,
+        tags: sortedTags(all).map((t) => t.name),
+        tagIds: sortedTags(all).map((t) => t.id),
+      };
       this.#assets.set(id, next);
       out.push(next);
     }

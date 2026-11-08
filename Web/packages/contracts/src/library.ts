@@ -36,6 +36,8 @@ export const libraryAssetSchema = z.object({
   byteSize: z.number().int().nonnegative(),
   createdAt: z.string(),
   tags: z.array(z.string()),
+  /** IDs of the same tags, in the same order, so a tag can be removed without a lookup. */
+  tagIds: z.array(id),
   /** Catalog revision, needed by the Worker to accept an edit (stale edits are rejected). */
   revision: z.number().int().nonnegative(),
   /** Set only for items in Trash. */
