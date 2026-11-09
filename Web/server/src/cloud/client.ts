@@ -188,28 +188,44 @@ export class CloudClient {
     };
   }
 
-  /** Reads the entire catalog snapshot, following pagination. */
-  async fetchCatalog(): Promise<{ entities: BootstrapEntity[]; watermarkRevision: number }> {
-    const entities: BootstrapEntity[] = [];
-    let watermarkRevision = 0;
-    let cursor: string | null = "0";
-    let first = true;
-    while (cursor !== null) {
-      const res = await this.get(
-        `/v1/catalog/bootstrap?cursor=${encodeURIComponent(cursor)}&limit=500`,
-      );
+  /**
+   * Reads the entire catalog snapshot. The first page reveals the page size; the remaining pages are
+   * independent offsets, so they are fetched several at a time (a large library is ~140 pages).
+   */
+  async fetchCatalog(
+    concurrency = 6,
+  ): Promise<{ entities: BootstrapEntity[]; watermarkRevision: number }> {
+    type Page = {
+      watermarkRevision: number;
+      entities: BootstrapEntity[];
+      nextCursor: string | null;
+    };
+    const fetchPage = async (offset: number, limit: number): Promise<Page> => {
+      const res = await this.get(`/v1/catalog/bootstrap?cursor=${offset}&limit=${limit}`);
       if (!res.ok) throw await this.#failure(res, "Catalog bootstrap");
-      const page = (await res.json()) as {
-        watermarkRevision: number;
-        entities: BootstrapEntity[];
-        nextCursor: string | null;
-      };
-      if (first) watermarkRevision = page.watermarkRevision;
-      first = false;
-      entities.push(...page.entities);
-      cursor = page.nextCursor;
+      return (await res.json()) as Page;
+    };
+
+    const first = await fetchPage(0, 500);
+    const entities = [...first.entities];
+    const stride = first.entities.length;
+    if (first.nextCursor !== null && stride > 0) {
+      let offset = stride;
+      let last = false;
+      while (!last) {
+        const offsets = Array.from({ length: concurrency }, (_, i) => offset + i * stride);
+        const pages = await Promise.all(offsets.map((o) => fetchPage(o, stride)));
+        for (const page of pages) {
+          entities.push(...page.entities); // Promise.all keeps request order, so the snapshot order is stable
+          if (page.nextCursor === null) {
+            last = true;
+            break;
+          }
+        }
+        offset += concurrency * stride;
+      }
     }
-    return { entities, watermarkRevision };
+    return { entities, watermarkRevision: first.watermarkRevision };
   }
 
   /** Streams a cached derivative (thumbnail/preview) for an asset. Caller handles non-OK responses. */

@@ -70,3 +70,51 @@ describe("CloudClient", () => {
     expect(cloud.state.bootstrapCalls).toBeGreaterThan(1);
   });
 });
+
+describe("CloudClient catalog download", () => {
+  const many = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      entityType: "asset",
+      entityId: `bulk-${String(i).padStart(3, "0")}`,
+      revision: 1,
+      payload: { id: `bulk-${i}` },
+    }));
+
+  it("returns every entity exactly once and in order, whatever the page size and concurrency", async () => {
+    for (const [pageSize, concurrency] of [
+      [7, 1],
+      [7, 6],
+      [10, 3],
+      [50, 6],
+      [1000, 6],
+    ] as const) {
+      const entities = many(43);
+      const cloud = createFakeCloud({ pageSize, entities });
+      const client = new CloudClient({
+        baseUrl: BASE_URL,
+        pairingSecret: PAIRING_SECRET,
+        deviceId: "framebase-web-test",
+        fetchImpl: cloud.fetch,
+      });
+      const got = await client.fetchCatalog(concurrency);
+      expect(
+        got.entities.map((e) => e.entityId),
+        `page ${pageSize} x ${concurrency}`,
+      ).toEqual(entities.map((e) => e.entityId));
+      expect(got.watermarkRevision).toBe(42);
+    }
+  });
+
+  it("handles an empty catalog and an exact multiple of the page size", async () => {
+    for (const n of [0, 21]) {
+      const cloud = createFakeCloud({ pageSize: 7, entities: many(n) });
+      const client = new CloudClient({
+        baseUrl: BASE_URL,
+        pairingSecret: PAIRING_SECRET,
+        deviceId: "framebase-web-test",
+        fetchImpl: cloud.fetch,
+      });
+      expect((await client.fetchCatalog()).entities).toHaveLength(n);
+    }
+  });
+});
