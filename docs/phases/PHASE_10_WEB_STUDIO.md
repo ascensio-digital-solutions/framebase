@@ -88,7 +88,7 @@ Observed 2026-11-07 (read-only): `framebase-api-dev` and `framebase-api-prod` Wo
 - [x] **Delete = Trash, never permanent.** The Worker has no purge: `purge.approve` is deliberately not grantable and nothing in the web studio requests it. Trash keeps the prior folder, albums and tags so Restore puts everything back exactly. Permanent deletion (emptying Trash, removing originals from R2) needs its own design, an explicit approval flow and a Worker change. It is not built.
 - [x] Verified: 41 server tests (fake Worker with revision, scope and idempotency behaviour), UI exercised in a browser against synthetic data (trash, undo, favorite, rating, rename all applied), and a reversible round trip on the **real prod Worker** with a temporary write-scoped device that was revoked afterwards: favorite on/off, Trash, Restore on one asset left it identical to before (only the revision counter moved).
 - [x] Deployed: staging revision `framebase-web-staging--0000007` (commit `84579ee0`) with `LIBRARY_WRITES_ENABLED=true`, connected to the prod Worker. The signed-in UI was not exercised on staging; unauthenticated requests get 401.
-- [ ] Not built yet: bulk favorite/rating, album membership edits, folder create/rename/move, upload/import, and the permanent-delete flow above. The Personal library has no API Worker deployed, so it cannot be edited from here yet.
+- [x] Since built (see 2c): bulk favorite/rating, album membership edits, folder create/rename/move and the Personal Worker. [ ] Still not built: upload/import and the permanent-delete flow above.
 
 ### Milestone 2c: Personal library, HSC load, performance (2026-11-08/09)
 
@@ -99,6 +99,7 @@ Observed 2026-11-07 (read-only): `framebase-api-dev` and `framebase-api-prod` Wo
 - [x] **Library switcher** (HSC/Personal, never merged), bulk favorite/rating, albums (create/rename/delete, add/remove photos), folders (create/rename/move, no delete). 56 server tests.
 - [x] **Staging** `framebase-web-staging--0000009`, commit `91e6dbff`, 0.5 vCPU / 1 GiB, both libraries configured, editing on, Entra sign-in enforced. Both catalogs warm at boot (HSC 2.9 s, Personal 15.8 s). The signed-in UI was not exercised with the Personal library.
 - Credentials: the Framebase dev deploy token was narrowed to the dev R2 bucket. Five other tokens still have account-wide R2 access (listed in the handoff); they belong to other projects and were not changed. Temporary D1 and HSC-read tokens and the two import devices were deleted/revoked.
+- [x] **HSC albums imported** (2026-11-09; first left out by mistake): 10 albums created on prod and 4,834 of 7,867 memberships added (the other 3,033 point at assets with no cloud copy), per-album counts verified against the Mac catalog (e.g. 02 Specs 717, 03 People 540, 09 Reference 2,971). Mac catalogs contain **0 saved searches** (HSC and Personal), so there is nothing to import. Personal has 0 albums. Temporary device `framebase-hsc-albums` revoked; staging restarted to reload the catalog.
 - Importer lessons (scripts live in the session scratchpad, not the repo): fetch the catalog in only ONE process, freeze Mac inputs to a snapshot, and reuse existing tags by NAME (the Worker refuses duplicate names).
 
 ### Milestone 0 questions that block later work
