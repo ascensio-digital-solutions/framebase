@@ -90,6 +90,17 @@ Observed 2026-11-07 (read-only): `framebase-api-dev` and `framebase-api-prod` Wo
 - [x] Deployed: staging revision `framebase-web-staging--0000007` (commit `84579ee0`) with `LIBRARY_WRITES_ENABLED=true`, connected to the prod Worker. The signed-in UI was not exercised on staging; unauthenticated requests get 401.
 - [ ] Not built yet: bulk favorite/rating, album membership edits, folder create/rename/move, upload/import, and the permanent-delete flow above. The Personal library has no API Worker deployed, so it cannot be edited from here yet.
 
+### Milestone 2c: Personal library, HSC load, performance (2026-11-08/09)
+
+- [x] **Personal API Worker** `framebase-personal-api-prod` deployed (minimal config: D1 `framebase-catalog-personal-prod`, R2 `framebase-blobs-personal-prod`, `IMAGES`; secrets JWT/ENROLLMENT/R2\_\*). Its R2 secrets derive from the bucket-scoped read+write token `framebase-personal-r2-readwrite` (that token must stay: the Worker uses it). Pairing secret in `~/.env` as `FRAMEBASE_API_PERSONAL_ENROLLMENT_SECRET`.
+- [x] **Personal catalog loaded** from the Mac catalog through the Worker's audited mutation API (blobs registered by direct SQL because the 41,740 objects already existed): 41,740 assets, 35 folders, 23,702 tags in use, 283,629 tag links, real capture dates restored in `created_at`. Verified against the Mac catalog. 2,220 Personal assets have no cloud copy.
+- [x] **HSC (prod)**: 4,100 more assets registered (prod 2,327 to 6,427), 841 existing assets filed out of Inbox, 127 folders, 4,894 tags, 58,236 links. 3,310 HSC assets have no cloud copy (56 have the original on the Mac). Lists of both are in `~/Documents/Framebase-import-reports/` (local only).
+- [x] **Catalog bootstrap performance**: pages now cost O(page) (Worker `catalog.ts` rewrite, 86 API tests) and the client fetches six pages at a time. A 41,740-asset download went from 331 s to 29 s. Deployed to both Workers (personal `81d1a9ca`, prod `db6438f4`; previous prod versions `f5b26713`, `1b9d9279`, `eeef8e39`).
+- [x] **Library switcher** (HSC/Personal, never merged), bulk favorite/rating, albums (create/rename/delete, add/remove photos), folders (create/rename/move, no delete). 56 server tests.
+- [x] **Staging** `framebase-web-staging--0000009`, commit `91e6dbff`, 0.5 vCPU / 1 GiB, both libraries configured, editing on, Entra sign-in enforced. Both catalogs warm at boot (HSC 2.9 s, Personal 15.8 s). The signed-in UI was not exercised with the Personal library.
+- Credentials: the Framebase dev deploy token was narrowed to the dev R2 bucket. Five other tokens still have account-wide R2 access (listed in the handoff); they belong to other projects and were not changed. Temporary D1 and HSC-read tokens and the two import devices were deleted/revoked.
+- Importer lessons (scripts live in the session scratchpad, not the repo): fetch the catalog in only ONE process, freeze Mac inputs to a snapshot, and reuse existing tags by NAME (the Worker refuses duplicate names).
+
 ### Milestone 0 questions that block later work
 
 - Where does the authoritative Hair Concierge corpus and live index reside (Google Vertex RAG today)? Do not build a second migration until this is answered.
