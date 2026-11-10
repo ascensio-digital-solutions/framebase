@@ -1,0 +1,58 @@
+{
+  "name": "Framebase Web Studio",
+  // Single prebuilt image, no sidecars: starts fast. Heavy tooling is opt-in (see .devcontainer/README.md).
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+
+  "hostRequirements": { "cpus": 4, "memory": "8gb", "storage": "32gb" },
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Lets `gh codespace ssh|logs|cp` reach the container.
+    "ghcr.io/devcontainers/features/sshd:1": {},
+    "ghcr.io/devcontainers/features/azure-cli:1": {}
+  },
+
+  "forwardPorts": [5173, 8788],
+  "portsAttributes": {
+    "5173": { "label": "Web app (Vite)", "onAutoForward": "openBrowser" },
+    "8788": { "label": "Web API (Hono)", "onAutoForward": "silent" }
+  },
+
+  // Names only. Set real values as Codespaces user/org secrets; never commit them.
+  "secrets": {
+    "OPENROUTER_API_KEY": {
+      "description": "OpenRouter key for chat, vision and image generation (server-side only)."
+    },
+    "FRAMEBASE_CLOUD_API_URL": {
+      "description": "Base URL of the Framebase Cloudflare API (development Worker unless approved otherwise)."
+    },
+    "FRAMEBASE_CLOUD_PAIRING_SECRET": {
+      "description": "The Framebase Worker's pairing credential. The web server uses it only to enroll itself as a read-only (library.read) device. Never a raw R2/D1 or Cloudflare API token."
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "GitHub.vscode-github-actions"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "typescript.tsdk": "Web/node_modules/typescript/lib",
+        "eslint.workingDirectories": [
+          { "directory": "Web", "changeProcessCWD": true }
+        ],
+        "files.watcherExclude": {
+          "**/node_modules/**": true,
+          "**/dist/**": true
+        }
+      }
+    }
+  }
+}

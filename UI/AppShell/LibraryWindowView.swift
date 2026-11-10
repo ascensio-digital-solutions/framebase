@@ -167,7 +167,7 @@ struct LibraryWindowView: View {
                         .foregroundStyle(.secondary)
                     TextField("Recognized text", text: recognizedTextSearchBinding)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 170)
+                        .frame(width: 130)
                         .accessibilityIdentifier("toolbar.recognizedTextSearch")
                     if !model.recognizedTextSearch.isEmpty {
                         Button {
@@ -272,16 +272,16 @@ struct LibraryWindowView: View {
                 } maximumValueLabel: {
                     Image(systemName: "photo.fill")
                 }
-                .frame(width: 170)
+                .frame(width: 120)
 
                 Button {
                     model.toggleAssistantPanel()
                     storedInspectorVisible = model.isInspectorVisible
                 } label: {
-                    Label("AI Assistant", systemImage: "sparkles")
+                    Label("AI Chat", systemImage: "sparkles")
                 }
                 .keyboardShortcut("j", modifiers: .command)
-                .help("Toggle Framebase 2.0 AI Assistant (⌘J)")
+                .help("Toggle Framebase 2.0 AI Assistant Chat (⌘J)")
                 .accessibilityIdentifier("toolbar.aiAssistant")
 
                 Button {

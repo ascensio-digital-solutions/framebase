@@ -50,17 +50,20 @@ derivativesRouter.get('/assets/:id/variants/:variant', requireAuth('library.read
     const transformed = await c.env.IMAGES.input(original.body)
       .transform({ width: config.width, height: config.height, fit: config.fit })
       .output({ format: 'image/webp', quality: config.quality });
-    const body = transformed.image();
+    // R2 rejects a stream of unknown length, and a stream can only be consumed once (cache write OR response),
+    // so buffer the (small) derivative and use the bytes for both.
+    const body = await new Response(transformed.image()).arrayBuffer();
     await c.env.BLOBS.put(derivativeKey, body, {
       httpMetadata: { contentType: 'image/webp', cacheControl: 'public, max-age=31536000, immutable' }
     });
     return derivativeResponse(body, 'MISS');
-  } catch {
+  } catch (error) {
+    console.error('derivative generation failed:', error instanceof Error ? error.message : 'unknown error');
     return apiError(c, 422, 'DERIVATIVE_GENERATION_FAILED', 'Cloud image transformation failed');
   }
 });
 
-function derivativeResponse(body: ReadableStream<Uint8Array>, cache: 'HIT' | 'MISS'): Response {
+function derivativeResponse(body: ReadableStream<Uint8Array> | ArrayBuffer, cache: 'HIT' | 'MISS'): Response {
   return new Response(body, {
     headers: {
       'Content-Type': 'image/webp',

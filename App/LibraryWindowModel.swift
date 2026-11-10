@@ -160,7 +160,7 @@ final class LibraryWindowModel {
     var workflowTagUndo: WorkflowTagUndo?
     var pendingFolderDeletion: FolderDeletionPrompt?
     var isInspectorVisible = true
-    var isAssistantTabActive = false
+    var isAssistantTabActive = true
     var assistantController: LibraryAssistantController!
     var thumbnailSize: Double = 176 {
         didSet {

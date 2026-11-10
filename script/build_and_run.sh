@@ -46,6 +46,11 @@ if [[ ! -d "$APP_BUNDLE" || ! -x "$APP_BINARY" ]]; then
   exit 70
 fi
 
+if [[ -w "/Applications" ]]; then
+  rm -rf "/Applications/$APP_NAME.app" 2>/dev/null || true
+  cp -R "$APP_BUNDLE" "/Applications/$APP_NAME.app" 2>/dev/null || true
+fi
+
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }

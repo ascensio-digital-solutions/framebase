@@ -1,0 +1,52 @@
+name: Web image (publish to ACR)
+
+# Manual only. Publishes an immutable image to Azure Container Registry using GitHub OIDC.
+# It does NOT deploy: promoting a digest to Container Apps is a separate, explicitly approved step.
+# Requires the `staging` environment (with required reviewers) and these repository variables:
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, ACR_NAME
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check configuration
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ACR_NAME: ${{ vars.ACR_NAME }}
+        run: |
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID ACR_NAME; do
+            if [ -z "${!name}" ]; then echo "::error::Repository variable $name is not set"; missing=1; fi
+          done
+          exit $missing
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push
+        id: push
+        env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
+        run: |
+          az acr login --name "$ACR_NAME"
+          image="$ACR_NAME.azurecr.io/framebase-web:${GITHUB_SHA}"
+          docker build --build-arg GIT_SHA="${GITHUB_SHA}" -t "$image" Web
+          docker push "$image"
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$image")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Published $digest" >> "$GITHUB_STEP_SUMMARY"

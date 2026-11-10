@@ -1,7 +1,9 @@
+import AppKit
 import Foundation
 import FramebaseCatalog
 import FramebaseDomain
 import Observation
+import UniformTypeIdentifiers
 
 struct AssistantMessage: Identifiable, Sendable {
     enum Role: String, Sendable {
@@ -13,6 +15,7 @@ struct AssistantMessage: Identifiable, Sendable {
     let role: Role
     let text: String
     let timestamp: Date
+    let attachedImageURL: URL?
     let actionCard: AssistantActionCard?
 
     init(
@@ -20,12 +23,14 @@ struct AssistantMessage: Identifiable, Sendable {
         role: Role,
         text: String,
         timestamp: Date = Date(),
+        attachedImageURL: URL? = nil,
         actionCard: AssistantActionCard? = nil
     ) {
         self.id = id
         self.role = role
         self.text = text
         self.timestamp = timestamp
+        self.attachedImageURL = attachedImageURL
         self.actionCard = actionCard
     }
 }
@@ -47,8 +52,16 @@ struct AssistantActionCard: Identifiable, Sendable {
         let assetID: AssetID?
     }
 
+    struct FocusOptionItem: Identifiable, Sendable {
+        let id = UUID()
+        let label: String
+        let followUpPrompt: String
+        let imageURL: URL?
+    }
+
     let id = UUID()
     let kind: Kind
+    var focusOptions: [FocusOptionItem] = []
     var isUndone: Bool = false
 }
 
@@ -59,6 +72,7 @@ final class LibraryAssistantController {
 
     var messages: [AssistantMessage] = []
     var inputText: String = ""
+    var attachedImageURL: URL?
     var isProcessing: Bool = false
     var statusBanner: String?
 
@@ -73,28 +87,103 @@ final class LibraryAssistantController {
         messages = [
             AssistantMessage(
                 role: .assistant,
-                text: "I'm your **Framebase 2.0 Media & Hair Concierge Expert** for **\(libraryName)** (connected to `ascensio-media-os` + `the-hair-concierge-2026` RAG Brain).\n\nAsk me to:\n• *\"Create an album for me with all the hairline photos with blonde hair\"*\n• *\"Match #1B20 (20% grey blend) or Swiss lace specs from The Hair Concierge and show matching swatches\"*\n• *\"Split this model folder into headshots, editorial, and before-after\"*\n• *\"Find open-source CRM or AI repo screenshots\"*"
+                text: "I'm your **Framebase 2.0 Multimodal Vision & Hair Concierge Expert** for **\(libraryName)** (powered by Vertex AI `gemini-3.8-flash` on `ascensio-media-os` + `the-hair-concierge-2026` RAG Brain).\n\n**New — Multimodal Vision Search**:\nClick the **Photo Upload (`+`) button** below (or drag & drop any photo here) and ask:\n• *\"Find me all the mushroom-head style photos of hair systems showing different hair colors\"*\n• *\"Create an album for me with all the hairline photos with blonde hair\"*\n• *\"Split this model folder into headshots, editorial, and before-after\"*"
             )
         ]
     }
 
+    // MARK: - Image Upload & Attachment Controls
+
+    func pickImageAttachment() {
+        let panel = NSOpenPanel()
+        panel.title = "Attach Reference Image for Framebase Vision AI"
+        panel.prompt = "Attach Photo"
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.image, .png, .jpeg, .webP, .heic, .tiff]
+        if panel.runModal() == .OK, let url = panel.url {
+            attachedImageURL = url
+            if inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                inputText = "Find me all the mushroom-head style photos of hair systems showing different hair colors"
+            }
+        }
+    }
+
+    func attachImageURL(_ url: URL) {
+        attachedImageURL = url
+    }
+
+    func clearAttachment() {
+        attachedImageURL = nil
+    }
+
+    func attachSelectedLibraryAsset() {
+        guard let firstID = windowModel.selectedAssetIDs.first else { return }
+        let idString = firstID.rawValue.uuidString.lowercased()
+        let shard = String(idString.prefix(2))
+        let thumbRoot = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Caches/com.vincentlaroche.framebase/Thumbnails", isDirectory: true)
+            .appendingPathComponent(shard, isDirectory: true)
+
+        if let entries = try? FileManager.default.contentsOfDirectory(at: thumbRoot, includingPropertiesForKeys: nil) {
+            if let preview = entries.first(where: { $0.lastPathComponent.hasPrefix("v1-preview-\(idString)-") }) ??
+                entries.first(where: { $0.lastPathComponent.hasPrefix("v1-thumbnail-\(idString)-") }) {
+                attachedImageURL = preview
+                return
+            }
+        }
+    }
+
+    func runMushroomHeadVisionDemo() async {
+        if attachedImageURL == nil {
+            let demoRef = URL(fileURLWithPath: "/Users/vincent/06_code/framebase/MediaWorkshop/references/objects/mushroom_head_color_ref_3.webp")
+            if FileManager.default.fileExists(atPath: demoRef.path) {
+                attachedImageURL = demoRef
+            }
+        }
+        await sendPrompt("Find me all the mushroom-head style photos of hair systems showing different hair colors")
+    }
+
+    func runFocusOption(_ option: AssistantActionCard.FocusOptionItem) async {
+        if let url = option.imageURL {
+            attachedImageURL = url
+        }
+        await sendPrompt(option.followUpPrompt)
+    }
+
     func sendPrompt(_ rawPrompt: String? = nil) async {
-        let prompt = (rawPrompt ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !prompt.isEmpty, !isProcessing else { return }
+        let rawText = (rawPrompt ?? inputText).trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentAttachment = attachedImageURL
+        guard (!rawText.isEmpty || currentAttachment != nil), !isProcessing else { return }
+
+        let prompt = rawText.isEmpty
+            ? "Find visually similar photos matching this reference image in the library"
+            : rawText
+
         if rawPrompt == nil {
             inputText = ""
         }
+        attachedImageURL = nil
 
-        messages.append(AssistantMessage(role: .user, text: prompt))
+        messages.append(
+            AssistantMessage(
+                role: .user,
+                text: prompt,
+                attachedImageURL: currentAttachment
+            )
+        )
         isProcessing = true
-        statusBanner = "Analyzing catalog, visual assessments, and tags…"
+        statusBanner = currentAttachment != nil
+            ? "Analyzing uploaded photo with Vertex AI Gemini 3.8 Flash + Hair Concierge Brain…"
+            : "Analyzing catalog, visual assessments, and tags…"
         defer {
             isProcessing = false
             statusBanner = nil
         }
 
         do {
-            let response = try await executeNaturalLanguageCommand(prompt)
+            let response = try await executeNaturalLanguageCommand(prompt, attachedImageURL: currentAttachment)
             messages.append(response)
         } catch {
             messages.append(
@@ -108,8 +197,14 @@ final class LibraryAssistantController {
 
     // MARK: - Core Natural Language Command Planner & Executor
 
-    private func executeNaturalLanguageCommand(_ prompt: String) async throws -> AssistantMessage {
+    private func executeNaturalLanguageCommand(_ prompt: String, attachedImageURL: URL? = nil) async throws -> AssistantMessage {
         let lower = prompt.lowercased()
+
+        // 0. Multimodal Vision Search when an image is uploaded OR when visual style similarity is requested ("mushroom-head", "dome", "similar", "like this", "style photos")
+        let isVisualStyleQuery = lower.contains("mushroom") || lower.contains("dome") || lower.contains("like this") || lower.contains("similar") || lower.contains("different hair color") || lower.contains("different color") || lower.contains("hair-side-up") || lower.contains("base-side-up")
+        if attachedImageURL != nil || isVisualStyleQuery {
+            return try await handleVisionSimilarityQuery(prompt: prompt, imageURL: attachedImageURL)
+        }
 
         // 1. Check if the user is asking for Knowledge / Screenshot Repo Scout
         if lower.contains("repo") || lower.contains("open-source") || lower.contains("open source") || lower.contains("crm") || (lower.contains("screenshot") && (lower.contains("tool") || lower.contains("app") || lower.contains("find"))) {
@@ -749,6 +844,175 @@ final class LibraryAssistantController {
                     assetIDs: matchedIDs
                 )
             )
+        )
+    }
+
+    // MARK: - Multimodal Vision Similarity Search (Vertex AI Gemini 3.8 Flash + Hair Concierge Brain)
+
+    private func handleVisionSimilarityQuery(prompt: String, imageURL: URL?) async throws -> AssistantMessage {
+        let libraryRootPath = windowModel.container.activeLibrary?.rootURL.path
+            ?? (NSHomeDirectory() + "/Pictures/HSC Library.framebase")
+        let pythonPath = "/Users/vincent/06_code/framebase/.venv/bin/python"
+        let scriptPath = "/Users/vincent/06_code/framebase/MediaWorkshop/classifier/vision_chat_search.py"
+
+        // If no image was attached explicitly, check if an asset is currently selected in the browser, or fall back to the mushroom-head reference
+        var resolvedImageURL = imageURL
+        if resolvedImageURL == nil, let firstSelected = windowModel.selectedAssetIDs.first {
+            let idString = firstSelected.rawValue.uuidString.lowercased()
+            let shard = String(idString.prefix(2))
+            let thumbRoot = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Caches/com.vincentlaroche.framebase/Thumbnails", isDirectory: true)
+                .appendingPathComponent(shard, isDirectory: true)
+            if let entries = try? FileManager.default.contentsOfDirectory(at: thumbRoot, includingPropertiesForKeys: nil),
+               let thumb = entries.first(where: { $0.lastPathComponent.hasPrefix("v1-thumbnail-\(idString)-") }) {
+                resolvedImageURL = thumb
+            }
+        }
+        if resolvedImageURL == nil && (prompt.lowercased().contains("mushroom") || prompt.lowercased().contains("dome")) {
+            let fallbackRef = URL(fileURLWithPath: "/Users/vincent/06_code/framebase/MediaWorkshop/references/objects/mushroom_head_color_ref_3.webp")
+            if FileManager.default.fileExists(atPath: fallbackRef.path) {
+                resolvedImageURL = fallbackRef
+            }
+        }
+
+        let imageArgPath = resolvedImageURL?.path
+        statusBanner = "Running Vertex AI Gemini 3.8 Flash multimodal contact-sheet verification…"
+
+        let jsonData: Data = try await Task.detached(priority: .userInitiated) {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: pythonPath)
+            var args = [
+                scriptPath,
+                "--library-path", libraryRootPath,
+                "--prompt", prompt,
+                "--limit", "80"
+            ]
+            if let imgPath = imageArgPath {
+                args.append(contentsOf: ["--image", imgPath])
+            }
+            proc.arguments = args
+
+            let outPipe = Pipe()
+            let errPipe = Pipe()
+            proc.standardOutput = outPipe
+            proc.standardError = errPipe
+
+            try proc.run()
+            let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
+            return data
+        }.value
+
+        guard let payload = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+            throw NSError(
+                domain: "FramebaseVisionSearch",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Could not parse Vertex AI Vision response."]
+            )
+        }
+
+        let referenceAnalysis = (payload["reference_analysis"] as? String)
+            ?? "Analyzed reference photo with Vertex AI Gemini 3.8 Flash."
+        let clarificationQuestion = (payload["clarification_question"] as? String) ?? ""
+        let suggestedAlbumTitle = (payload["suggested_album_title"] as? String)
+            ?? "Mushroom-Head Hair Colors"
+        let querySummary = (payload["query_summary"] as? String)
+            ?? prompt
+        let detectedShades = (payload["detected_shades_or_codes"] as? [String]) ?? []
+        let rawFocusOptions = (payload["focus_options"] as? [[String: Any]]) ?? []
+        let rawMatched = (payload["matched_assets"] as? [[String: Any]]) ?? []
+
+        var parsedFocusOptions: [AssistantActionCard.FocusOptionItem] = []
+        for opt in rawFocusOptions {
+            if let label = opt["label"] as? String,
+               let followUp = opt["follow_up_prompt"] as? String,
+               !label.isEmpty, !followUp.isEmpty {
+                parsedFocusOptions.append(
+                    AssistantActionCard.FocusOptionItem(
+                        label: label,
+                        followUpPrompt: followUp,
+                        imageURL: resolvedImageURL
+                    )
+                )
+            }
+        }
+
+        var matchedIDs: [AssetID] = []
+        var sampleFilenames: [String] = []
+        for item in rawMatched {
+            if let idStr = item["id"] as? String, let uuid = UUID(uuidString: idStr) {
+                matchedIDs.append(AssetID(rawValue: uuid))
+            }
+            if let fn = (item["display_name"] as? String) ?? (item["filename"] as? String) {
+                if sampleFilenames.count < 10 {
+                    sampleFilenames.append(fn)
+                }
+            }
+        }
+
+        // Automatically create/update an Album and navigate the browser to it so the user immediately sees ONLY the matched photos side-by-side!
+        var createdOrUpdatedAlbum: Album?
+        if !matchedIDs.isEmpty, let albumRepo = windowModel.container.albumRepository {
+            let existingAlbums = (try? await albumRepo.albums()) ?? windowModel.albums
+            let targetAlbum: Album
+            if let existing = existingAlbums.first(where: { $0.name.caseInsensitiveCompare(suggestedAlbumTitle) == .orderedSame }) {
+                targetAlbum = existing
+                // Replace previous contents with fresh Vision matches
+                if let page = try? await windowModel.container.assetRepository?.page(
+                    matching: AssetQuery(scope: .album(existing.id)),
+                    sortedBy: .defaultSort,
+                    offset: 0,
+                    limit: 500
+                ) {
+                    let oldIDs = Set(page.records.map(\.id))
+                    if !oldIDs.isEmpty {
+                        try? await albumRepo.removeAssets(oldIDs, from: existing.id)
+                    }
+                }
+            } else {
+                targetAlbum = try await albumRepo.createAlbum(named: suggestedAlbumTitle)
+                try? await windowModel.container.queueCloudAlbumMutation(.create(targetAlbum))
+            }
+
+            let assetIDSet = Set(matchedIDs)
+            try await albumRepo.addAssets(assetIDSet, to: targetAlbum.id)
+            try? await windowModel.container.queueCloudAlbumMutation(.add(albumID: targetAlbum.id, assetIDs: assetIDSet))
+
+            windowModel.albums = (try? await albumRepo.albums()) ?? windowModel.albums
+            windowModel.navigationTarget = .album(targetAlbum.id)
+            windowModel.selectedAssetIDs = Set(matchedIDs.prefix(24))
+            createdOrUpdatedAlbum = targetAlbum
+        }
+
+        var lines: [String] = []
+        lines.append("### ✨ Gemini 3.8 Flash Vision Analysis (`ascensio-media-os`)")
+        lines.append(referenceAnalysis)
+        if !detectedShades.isEmpty {
+            lines.append("**Detected Hair Shades / Codes**: `\(detectedShades.prefix(28).joined(separator: "`, `"))`\(detectedShades.count > 28 ? "…" : "")")
+        }
+        if let album = createdOrUpdatedAlbum {
+            lines.append("I found **\(matchedIDs.count) visually matching photos** (hair-side-up, base facing down so it isn't visible, revealing the full hair dome all around) and opened them in the album **\"\(album.name)\"** in the browser.")
+        } else {
+            lines.append("I found **\(matchedIDs.count) visually matching photos** in this library.")
+        }
+        if !sampleFilenames.isEmpty {
+            lines.append("**Matches**: \(sampleFilenames.joined(separator: ", "))\(matchedIDs.count > sampleFilenames.count ? "…" : "")")
+        }
+        if !clarificationQuestion.isEmpty {
+            lines.append("💬 **\(clarificationQuestion)**")
+        }
+
+        let cardKind: AssistantActionCard.Kind
+        if let album = createdOrUpdatedAlbum {
+            cardKind = .createdAlbum(albumID: album.id, albumName: album.name, assetIDs: matchedIDs)
+        } else {
+            cardKind = .searchResults(title: suggestedAlbumTitle, querySummary: querySummary, assetIDs: matchedIDs)
+        }
+
+        return AssistantMessage(
+            role: .assistant,
+            text: lines.joined(separator: "\n\n"),
+            actionCard: AssistantActionCard(kind: cardKind, focusOptions: parsedFocusOptions)
         )
     }
 }

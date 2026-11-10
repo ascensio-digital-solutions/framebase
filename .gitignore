@@ -46,3 +46,4 @@ MediaWorkshop/classifier/model_comparison_report.html
 MediaWorkshop/classifier/*.log
 MediaWorkshop/scripts/*_cache.json
 
+MediaWorkshop/**/vision_silhouette_cache*.npz

@@ -14,18 +14,46 @@ struct FoundationInspector: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker(
-                "Mode",
-                selection: Binding(
-                    get: { model.isAssistantTabActive },
-                    set: { model.isAssistantTabActive = $0 }
-                )
-            ) {
-                Label("Inspector", systemImage: "info.circle").tag(false)
-                Label("AI Assistant", systemImage: "sparkles").tag(true)
+            HStack(spacing: 6) {
+                Button {
+                    model.isAssistantTabActive = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sparkles")
+                        Text("AI Chat")
+                            .fontWeight(.semibold)
+                    }
+                    .font(.callout)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(model.isAssistantTabActive ? Color.accentColor.opacity(0.28) : Color.white.opacity(0.05))
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("inspector.tab.assistant")
+
+                Button {
+                    model.isAssistantTabActive = false
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "info.circle")
+                        Text("Inspector")
+                            .fontWeight(.medium)
+                    }
+                    .font(.callout)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(!model.isAssistantTabActive ? Color.accentColor.opacity(0.28) : Color.white.opacity(0.05))
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("inspector.tab.details")
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .accessibilityIdentifier("inspector.modePicker")
 
@@ -36,11 +64,18 @@ struct FoundationInspector: View {
             } else {
                 Group {
                     if model.selectedAssetIDs.isEmpty {
-                        ContentUnavailableView(
-                            "No Selection",
-                            systemImage: "info.circle",
-                            description: Text("Select an image to inspect its details, or switch to the AI Assistant tab above.")
-                        )
+                        ContentUnavailableView {
+                            Label("No Selection", systemImage: "info.circle")
+                        } description: {
+                            Text("Select an image to inspect its details, or open the Framebase 2.0 AI Chat.")
+                        } actions: {
+                            Button {
+                                model.isAssistantTabActive = true
+                            } label: {
+                                Label("Open AI Assistant Chat", systemImage: "sparkles")
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
                     } else if model.inspectorSelectionIsLimited {
                         Form {
                             Section("Selection") {
